@@ -195,6 +195,8 @@ button{font:inherit;color:inherit;letter-spacing:inherit;cursor:pointer}
 .fld.sm input{width:44px}
 .fld span{font-size:15px}
 .textin{width:100%;border:0;background:transparent;font:17px var(--font);letter-spacing:-.41px;color:var(--label);padding:0;outline:none;resize:none;min-height:22px}
+.textin.code{font:13px/1.45 ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:0;min-height:220px;white-space:pre;overflow:auto;-webkit-user-select:text;user-select:text}
+#sheet-status .ic{font-size:12px;vertical-align:-1px;stroke-width:3}
 .textin::placeholder,.fld input::placeholder{color:var(--label3)}
 .calc-val{color:var(--label2)}
 
@@ -1020,7 +1022,7 @@ plan:function(){
     '<span class="hero-num">'+signed(h.left)+'</span>'+
     '<span class="hero-sub">Left over with '+esc(h.job)+' + Caf, leaving '+fmtD(h.dep,'md')+'</span>'+
     '<span class="hero-chips"><span>'+svg('plane')+(dd>1?dd+' days until San Juan':dd===1?'Fly tomorrow':dd===0?'Fly today':'Trial underway')+'</span><span>'+svg('house')+'Home by '+fmtD(h.backHome,'md')+'</span></span></button>';
-  var cta=P?'':'<div class="cta"><span class="cta-ic">'+svg('sparkles')+'</span><div class="cta-main"><div class="cta-t">Pick the plan you’re going with</div><div class="cta-s">Choose a job and a departure date. Hours and the timeline follow it.</div></div><button type="button" class="cap-btn" data-act="wizard">Set Up</button></div>';
+  var cta=savings()===0&&num(S.inputs.debt)===0?'<div class="cta"><span class="cta-ic" style="color:var(--green);background:color-mix(in srgb,var(--green) 14%,transparent)">'+svg('doc')+'</span><div class="cta-main"><div class="cta-t">Add your numbers</div><div class="cta-s">Paste the JSON with your balances and checklist. It stays on this device.</div></div><button type="button" class="cap-btn" data-act="import">Import</button></div>':P?'':'<div class="cta"><span class="cta-ic">'+svg('sparkles')+'</span><div class="cta-main"><div class="cta-t">Pick the plan you’re going with</div><div class="cta-s">Choose a job and a departure date. Hours and the timeline follow it.</div></div><button type="button" class="cap-btn" data-act="wizard">Set Up</button></div>';
   function tile(l,v,s,act,target){return '<button class="tile-card" type="button" data-act="'+act+'" '+(act==='tab'?'data-tab':'data-view')+'="'+target+'"><span class="tc-l">'+l+'</span><span class="tc-v">'+v+'</span><span class="tc-s">'+s+'</span></button>'}
   var tiles='<div class="tiles">'+tile('Savings',money(savings()),'Robinhood + Step','push','inputs')+tile(num(S.inputs.weeks)+'-wk trip',money(tb.total),'incl. $1k cushion','tab','budget')+tile('School debt',money(S.inputs.debt),'pay off by Dec 18','push','inputs')+'</div>';
   var entries=(pc?[{c:pc,lab:'Your plan · '+pc.label,mine:true}]:[]).concat(sc.map(function(c,i){return {c:c,lab:c.label,best:!P&&i===bi&&c.left>=0}}));
@@ -1062,8 +1064,10 @@ inputs:function(){
   }).join('')+
   sec('Pay & hours',vrow('Pay Rules',null,'Rates, pay periods, breaks, overtime and withholding for the Hours tab',{act:'push',attrs:'data-view="payrules"',icon:'doc',color:'--gray'}))+
   sec('Data','<div class="row"><div class="row-main"><div class="row-title">Sync</div><div class="row-sub" data-sync style="display:flex;gap:7px;align-items:center">'+syncText()+'</div></div></div>'+
-    '<button type="button" class="row action red tap" data-act="reset">Restore Spreadsheet Values</button>',
-    'Changes save automatically to this app’s storage, so they’re here next time you open it. Restoring puts every input, what-if and pay rule back to the numbers from Puerto_Rico_Plan.xlsx. Your plan, hours, extra money and checklist stay.');
+    vrow('Import Data',null,'Paste a JSON backup of your numbers and checklist',{act:'import',icon:'doc',color:'--green'})+
+    vrow('Export Data',null,'Copy everything as JSON',{act:'export',icon:'copy',color:'--indigo'})+
+    '<button type="button" class="row action red tap" data-act="reset">Restore Default Values</button>',
+    'Changes save automatically to this app’s storage, so they’re here next time you open it. Restoring puts every input, what-if and pay rule back to the defaults. Your plan, hours, extra money and checklist stay.');
   return {title:'Inputs',body:'<div style="height:2px"></div>'+body};
 },
 payrules:function(){
@@ -1436,6 +1440,61 @@ var SHEETS={
     del:function(d){delItem('tasks',d.id,'Task deleted')}
   }
 };
+function exportObj(){return clone({v:1,settings:docBody('settings'),tasks:docBody('tasks'),shifts:docBody('shifts'),extra:docBody('extra')})}
+function parseImport(text){
+  var o;text=String(text||'').trim();if(!text)return {err:'empty'};
+  try{o=JSON.parse(text)}catch(e){return {err:'That isn’t valid JSON. Paste the whole thing, from the first { to the last }.'}}
+  if(!o||typeof o!=='object'||Array.isArray(o))return {err:'Expected a JSON object that starts with {.'};
+  var st=o.settings&&typeof o.settings==='object'?clone(o.settings):{},docs={},sum=[],err='';
+  ['inputs','scenarios','rules','plan'].forEach(function(k){if(k in o&&!(k in st))st[k]=o[k]});
+  if(Object.keys(st).length){
+    var cur=docBody('settings'),m={v:1,inputs:Object.assign({},cur.inputs,st.inputs&&typeof st.inputs==='object'?st.inputs:{}),scenarios:Array.isArray(st.scenarios)?st.scenarios:cur.scenarios,rules:cur.rules,plan:'plan' in st?st.plan:cur.plan};
+    if(st.rules&&typeof st.rules==='object'){var r=Object.assign({},cur.rules,st.rules);['caf','wm','ar'].forEach(function(j){r[j]=Object.assign({},cur.rules[j],st.rules[j]&&typeof st.rules[j]==='object'?st.rules[j]:{})});m.rules=r}
+    docs.settings=m;
+    var n=st.inputs&&typeof st.inputs==='object'?Object.keys(st.inputs).length:0;
+    if(n)sum.push(n+' number'+(n===1?'':'s'));
+    if(Array.isArray(st.scenarios))sum.push('what-ifs');
+    if(st.rules)sum.push('pay rules');
+    if(st.plan)sum.push('your plan');
+  }
+  [['tasks','checklist task'],['shifts','shift'],['extra','extra money entry']].forEach(function(x){
+    var v=o[x[0]];if(v===undefined)return;
+    var items=Array.isArray(v)?v:(v&&Array.isArray(v.items)?v.items:null);
+    if(!items){err='“'+x[0]+'” should be a list.';return}
+    docs[x[0]]={v:1,items:items};sum.push(items.length+' '+x[1]+(items.length===1?'':'s'));
+  });
+  if(err)return {err:err};
+  if(!Object.keys(docs).length)return {err:'Nothing in that JSON this app can use.'};
+  return {docs:docs,summary:sum};
+}
+SHEETS.import={
+  title:function(){return 'Import Data'},
+  valid:function(d){return !parseImport(d.text).err},
+  status:function(d){var r=parseImport(d.text);if(r.err==='empty')return 'Paste the JSON below.';return r.err?'<span class="r">'+esc(r.err)+'</span>':'<span class="g">'+svg('check')+' Ready: '+esc(r.summary.join(', '))+'</span>'},
+  body:function(d){
+    var canPaste=!!(navigator.clipboard&&navigator.clipboard.readText);
+    return sec('','<div class="row"><textarea class="textin code" id="f-draft-text" data-bind="draft.text" data-kind="text" rows="12" spellcheck="false" autocapitalize="off" autocomplete="off" placeholder="{ &quot;settings&quot;: { … } }" aria-label="JSON to import">'+esc(d.text)+'</textarea></div>'+
+        (canPaste?'<button type="button" class="row action tap" data-act="imp-paste">Paste from Clipboard</button>':''),
+      '<span id="sheet-status">'+SHEETS.import.status(d)+'</span>',{tight:true})+
+      sec('','',
+        'Numbers in the JSON replace the ones here; anything it leaves out stays as it is. A checklist, shifts or extra money list in it replaces that whole list. Everything stays in this browser on this device.');
+  },
+  save:function(d){
+    var r=parseImport(d.text);if(r.err)return;
+    Object.keys(r.docs).forEach(function(k){applyDoc(k,clone(r.docs[k]));touch(k)});
+    toast('Imported '+r.summary[0]+(r.summary.length>1?' + more':''));
+    setTimeout(maybeWizard,700);
+  }
+};
+SHEETS.export={
+  title:function(){return 'Export Data'},
+  valid:function(){return true},
+  right:function(){return gbtn('copy','export-copy','','Copy JSON','tinted')},
+  body:function(d){
+    return sec('','<div class="row"><textarea class="textin code" id="f-export" rows="14" readonly spellcheck="false" aria-label="Exported JSON">'+esc(d.text)+'</textarea></div>',
+      'This has your balances, debt and checklist in it. Keep it somewhere private, then paste it into Import Data on another device.',{tight:true});
+  }
+};
 function draftShift(d){return {id:d.id||'new-'+(d._tmp||(d._tmp=uid())),job:d.job,date:d.date,clockIn:d.clockIn,mealOut:d.meal?d.mealOut:'',mealIn:d.meal?d.mealIn:'',clockOut:d.clockOut,notes:d.notes||''}}
 function openSheet(kind,draft){
   sheet={kind:kind,draft:draft,lastStep:draft.step};
@@ -1461,7 +1520,7 @@ function renderSheet(){
   if(d.step!==undefined&&d.step!==sheet.lastStep){sc.scrollTop=0;sc.classList.remove('wiz-anim');void sc.offsetWidth;sc.classList.add('wiz-anim');sheet.lastStep=d.step}
   updateSheetChrome();afterRender();
 }
-function updateSheetChrome(){if(!sheet)return;var b=$('#sheet-save');if(b)b.disabled=!SHEETS[sheet.kind].valid(sheet.draft)}
+function updateSheetChrome(){if(!sheet)return;var K=SHEETS[sheet.kind],b=$('#sheet-save');if(b)b.disabled=!K.valid(sheet.draft);var st=$('#sheet-status');if(st&&K.status)st.innerHTML=K.status(sheet.draft)}
 function closeSheet(){
   app.classList.remove('sheet-open');
   var s=$('.sheet');if(s){s.style.transform='';s.classList.remove('dragging')}
@@ -1471,7 +1530,7 @@ var wizAuto=false;
 function maybeWizard(){
   if(wizAuto||S.plan||readOnly||sheet)return;
   var dismissed=false;try{dismissed=localStorage.getItem('pr-plan-wiz')==='dismissed'}catch(e){}
-  if(dismissed)return;
+  if(dismissed||savings()===0)return;
   wizAuto=true;setTimeout(function(){if(!S.plan&&!sheet&&!readOnly)openWizard()},450);
 }
 
@@ -1543,6 +1602,16 @@ var A={
   },
   step:function(t){var p=t.dataset.bind,v=num(getAny(p))+num(t.dataset.d);setAny(p,Math.max(num(t.dataset.min),+v.toFixed(4)))},
   wizard:function(){openWizard()},
+  import:function(){openSheet('import',{text:''})},
+  export:function(){openSheet('export',{text:JSON.stringify(exportObj(),null,2)})},
+  'imp-paste':function(){
+    try{navigator.clipboard.readText().then(function(t){if(!sheet)return;sheet.draft.text=t;renderSheet()},function(){toast('Long-press the box and tap Paste')})}catch(e){toast('Long-press the box and tap Paste')}
+  },
+  'export-copy':function(){
+    var txt=sheet&&sheet.draft.text||'';
+    var fallback=function(){var ta=$('#f-export');if(ta){ta.focus();ta.select()}toast('Selected. Tap Copy to copy it')};
+    try{navigator.clipboard.writeText(txt).then(function(){toast('Copied JSON')},fallback)}catch(e){fallback()}
+  },
   'wz-next':function(){
     var d=sheet&&sheet.draft;if(!d||!SHEETS.wizard.valid(d))return;
     var a=document.activeElement;if(a&&a.blur)a.blur();
@@ -1557,8 +1626,8 @@ var A={
     var go=function(){S.plan=Object.assign(clone(s),{setAt:n2d(todayN())});touch('settings');render();toast('Going with '+calcScenario(S.plan,-1).label)};
     if(S.plan)confirmDlg('Switch your plan?','Your plan becomes '+calcScenario(s,i).label+'. Hours and the timeline will follow it.','Switch Plan',go);else go();
   },
-  reset:function(){confirmDlg('Restore spreadsheet values?','Every input, what-if and pay rule goes back to the numbers from Puerto_Rico_Plan.xlsx. Your plan, hours, extra money and the checklist stay.','Restore',function(){
-    S.inputs=clone(DEF.inputs);S.scenarios=clone(DEF.scenarios);S.rules=clone(DEF.rules);touch('settings');render();toast('Spreadsheet values restored')})},
+  reset:function(){confirmDlg('Restore default values?','Every input, what-if and pay rule goes back to the defaults, so your balances return to $0. Import your JSON again after. Your plan, hours, extra money and the checklist stay.','Restore',function(){
+    S.inputs=clone(DEF.inputs);S.scenarios=clone(DEF.scenarios);S.rules=clone(DEF.rules);touch('settings');render();toast('Default values restored')})},
   'add-shift':function(){
     var last=S.shifts.slice().sort(function(a,b){return (b.date+b.clockIn)<(a.date+a.clockIn)?-1:1})[0];
     openSheet('shift',{id:null,job:last?last.job:'Caf',date:n2d(todayN()),clockIn:last?last.clockIn:'09:00',clockOut:last?last.clockOut:'15:00',mealOut:'',mealIn:'',meal:false,notes:''});
