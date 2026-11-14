@@ -1081,7 +1081,7 @@ payrules:function(){
       :'Estimated: biweekly Sat–Fri, paid the next Thursday. A 2026 payday calendar lists Dec 10, which makes Sat Nov 21 a period start. Fix it from your first stub.')+
     numRow(P+'.len','Pay period length',isA?'7 = weekly, 14 = every two weeks.':'Both are biweekly. Workweeks start on the same weekday as the pay period.','days')+
     numRow(P+'.payday','Payday','Days after the period ends. '+(isC?'Optional: add it from a stub if you want paydays listed.':isA?'Add it from your first stub.':'Friday end → Thursday payday.'),'days',{nullable:true,ph:'None'})+
-    numRow(P+'.brk','Unpaid break taken off',isC?'30 min off any 6+ hour shift, no clock-out (your calculator’s rule)':isA?'Not known yet. The posting says work 36, paid for 40, so nothing comes off here.':'0 here: you clock out for meals, so log Meal out / Meal in instead (30 min on 6+ hr shifts, up to 1 hr on longer ones). Paid 15-min breaks aren’t logged.','hrs')+
+    numRow(P+'.brk',isC?'Time deducted on long shifts':'Unpaid break taken off',isC?'If you work 6+ hours straight with no clock-out, assume a manager takes 30 min off by hand, whether or not you actually got a break.':isA?'Not known yet. The posting says work 36, paid for 40, so nothing comes off here.':'0 here: you clock out for meals, so log Meal out / Meal in instead (30 min on 6+ hr shifts, up to 1 hr on longer ones). Paid 15-min breaks aren’t logged.','hrs')+
     numRow(P+'.brkMin','…on shifts of at least',job==='Walmart'?'Only used to flag a 6+ hour shift with no meal punch.':'','hrs')+
     (isA?numRow(P+'.bonusAt','Bonus kicks in after','Fri–Sun 5am–5pm: work 36, get paid for 40 (Ariel posting)','hrs/wk')+
       numRow(P+'.bonus','Bonus paid hours','Added on the shift where your week reaches the line above. They don’t count toward overtime.','hrs'):'')+
@@ -1125,7 +1125,7 @@ hours:function(){
     var c=byId[sh.id],jc=JOBC[sh.job]||JOBC.Caf;
     return '<div class="swipe hi"><div class="swipe-acts"><button type="button" class="sa red" data-act="del-shift" data-id="'+esc(sh.id)+'">'+svg('trash')+'Delete</button></div>'+
       '<div class="row swipe-row tap" data-act="edit-shift" data-id="'+esc(sh.id)+'" role="button" tabindex="0">'+tileIcon(jc[0],jc[1])+
-      '<div class="row-main"><div class="row-title">'+fmtD(c.d,'wmd')+'<span class="job-tag">'+esc(sh.job)+'</span></div><div class="row-sub">'+fmtT(sh.clockIn)+' – '+fmtT(sh.clockOut)+(c.meal?' · '+mins(c.meal)+' meal':c.brk?' · '+mins(c.brk)+' break off':'')+(c.bonus?' · +'+hrs(c.bonus)+' bonus hrs':'')+(sh.notes?' · '+esc(sh.notes):'')+'</div>'+
+      '<div class="row-main"><div class="row-title">'+fmtD(c.d,'wmd')+'<span class="job-tag">'+esc(sh.job)+'</span></div><div class="row-sub">'+fmtT(sh.clockIn)+' – '+fmtT(sh.clockOut)+(c.meal?' · '+mins(c.meal)+' meal':c.brk?' · '+mins(c.brk)+' likely deducted':'')+(c.bonus?' · +'+hrs(c.bonus)+' bonus hrs':'')+(sh.notes?' · '+esc(sh.notes):'')+'</div>'+
       (c.check?'<div class="row-warn">'+svg('warn')+esc(c.check)+'</div>':'')+'</div>'+
       '<div class="row-val two"><b>'+hrs(c.paidAll)+' hrs</b><span>'+money(c.th)+'</span></div></div></div>';
   }).join(''):'<div class="empty">'+svg('hours')+'<b>No Shifts Yet</b><span>Type the exact punches from your timecard. Paid hours, overtime and take-home come from your Pay Rules.</span><button type="button" class="cap-btn" data-act="add-shift">Log a Shift</button></div>';
@@ -1390,7 +1390,7 @@ var SHEETS={
       if(SHEETS.shift.valid(d)){
         var sh=draftShift(d),list=S.shifts.filter(function(s){return s.id!==sh.id}).concat([sh]);
         var c=computeShifts(list).filter(function(x){return x.id===sh.id})[0];
-        preview=sec('Estimate',vrow('Paid hours',hrs(c.paidAll)+' hrs','Span '+hrs(c.span)+' hrs'+(c.meal?' − '+mins(c.meal)+' meal':'')+(c.brk?' − '+mins(c.brk)+' auto break':'')+(c.bonus?' + '+hrs(c.bonus)+' bonus hrs (36-for-40)':''))+
+        preview=sec('Estimate',vrow('Paid hours',hrs(c.paidAll)+' hrs','Span '+hrs(c.span)+' hrs'+(c.meal?' − '+mins(c.meal)+' meal':'')+(c.brk?' − '+mins(c.brk)+' likely deducted':'')+(c.bonus?' + '+hrs(c.bonus)+' bonus hrs (36-for-40)':''))+
           vrow('Overtime',hrs(c.ot)+' hrs','Worked so far this week: '+hrs(c.weekTotal)+' hrs')+
           vrow('Gross pay',money(c.gross))+vrow('Est. take-home',money(c.th),'',{strong:true})+
           (c.check?'<div class="row"><div class="row-main"><div class="row-warn" style="margin:0">'+svg('warn')+esc(c.check)+'</div></div></div>':''),
@@ -1398,7 +1398,7 @@ var SHEETS={
       }else if(d.clockIn===d.clockOut&&isTime(d.clockIn)){
         preview=sec('','<div class="row"><div class="row-main"><div class="row-warn" style="margin:0">'+svg('warn')+'Clock out matches clock in</div></div></div>');
       }
-      var note=d.job==='Caf'?'The caf takes 30 min off any 6+ hour shift automatically. No clock-out needed.'
+      var note=d.job==='Caf'?'Worked 6+ hours straight with no clock-out? Assume the caf takes 30 min off by hand, break or not. Better to count on it than hope they miss it.'
         :d.job==='Ariel'?'Ariel: 12-hour shifts. Work 36 in a week and you’re paid for 40; the bonus lands on the shift that gets you to 36.'
         :'Walmart: log Meal out / Meal in (30 min on 6+ hr shifts, up to 1 hr on longer ones). Paid 15-min breaks aren’t logged.';
       return '<div class="seg-row">'+seg('draft.job',[['Caf','Caf'],['Walmart','Walmart'],['Ariel','Ariel']],d.job,'wide')+'</div>'+
