@@ -19,7 +19,7 @@
   --font:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",system-ui,Roboto,"Helvetica Neue",sans-serif;
   --font-display:-apple-system,BlinkMacSystemFont,"SF Pro Display","Segoe UI",system-ui,Roboto,sans-serif;
   --font-round:ui-rounded,"SF Pro Rounded",-apple-system,BlinkMacSystemFont,system-ui,sans-serif;
-  --sat:env(safe-area-inset-top,0px);
+  --sat:max(env(safe-area-inset-top,0px),6px);
   --sab:env(safe-area-inset-bottom,0px);
   --navh:54px; --tabh:62px;
   --tabb:max(12px,calc(var(--sab) - 10px));
@@ -78,7 +78,7 @@ html,body{overscroll-behavior:none}
 body{position:fixed;inset:0;width:100%}
 #device{position:relative;width:100%;height:var(--vvh,100%);transform:translateY(var(--vvtop,0px))}
 /* Solid strip at the top edge: iOS Safari only skips its own top-edge blur when it finds a painted, viewport-fixed element there (same fix as Flashi) */
-#status-bar-fill{position:fixed;inset:0 0 auto;height:max(6px,var(--sat));background:var(--bg);z-index:100;pointer-events:none;transform:translateY(var(--vvtop,0px));transition:background-color .5s var(--ease)}
+#status-bar-fill{position:fixed;inset:0 0 auto;height:var(--sat);background:var(--bg);z-index:100;pointer-events:none;transform:translateY(var(--vvtop,0px));transition:background-color .5s var(--ease)}
 html.sheet-up #status-bar-fill{background:#000}
 .kb-open .tabbar,.kb-open .tabfade{opacity:0;pointer-events:none;transform:translateY(40px)}
 .tabbar,.tabfade{transition:opacity .2s,transform .3s var(--ease),height .45s var(--ease),left .45s var(--ease),right .45s var(--ease)}
