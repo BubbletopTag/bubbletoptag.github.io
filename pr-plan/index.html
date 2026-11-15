@@ -138,6 +138,7 @@ html.sheet-up #status-bar-fill{background:#000}
 .sec{margin-top:26px}
 .sec.tight{margin-top:14px}
 .sec-h{display:flex;justify-content:space-between;align-items:flex-end;gap:8px;padding:0 32px 7px;font-size:13px;letter-spacing:-.08px;color:var(--label2);text-transform:uppercase}
+.sec-h .hbtn.red{color:var(--red)}
 .sec-h .hbtn{border:0;background:none;color:var(--tint);font-size:15px;text-transform:none;padding:0;font-weight:500;letter-spacing:-.2px}
 .sec-f{padding:7px 32px 0;font-size:13px;line-height:1.38;letter-spacing:-.08px;color:var(--label2)}
 .sec-f a,.sec-f button.link{color:var(--tint);text-decoration:none;border:0;background:none;padding:0;font-size:inherit}
@@ -1227,14 +1228,18 @@ hours:function(){
     vrow(Tk.main+' hours those cover',hrs(Tk.covered,1)+' hrs','(extra caf hrs × caf take-home + extra money) ÷ '+Tk.main+' take-home/hr');
   var byId={};Tk.calcs.forEach(function(c){byId[c.id]=c});
   var list=S.shifts.slice().sort(function(a,b){return (b.date+b.clockIn)<(a.date+a.clockIn)?-1:1});
-  var shifts=list.length?list.map(function(sh){
-    var c=byId[sh.id],jc=JOBC[sh.job]||JOBC.Caf;
-    return '<div class="swipe hi"><div class="swipe-acts"><button type="button" class="sa red" data-act="del-shift" data-id="'+esc(sh.id)+'">'+svg('trash')+'Delete</button></div>'+
-      '<div class="row swipe-row tap" data-act="edit-shift" data-id="'+esc(sh.id)+'" role="button" tabindex="0">'+tileIcon(jc[0],jc[1])+
-      '<div class="row-main"><div class="row-title">'+fmtD(c.d,'wmd')+'<span class="job-tag">'+esc(sh.job)+'</span></div><div class="row-sub">'+fmtT(sh.clockIn)+' – '+fmtT(sh.clockOut)+(c.meal?' · '+mins(c.meal)+' meal':c.brk?' · '+mins(c.brk)+' likely deducted':'')+(c.bonus?' · +'+hrs(c.bonus)+' bonus hrs':'')+(sh.notes?' · '+esc(sh.notes):'')+'</div>'+
-      (c.check?'<div class="row-warn">'+svg('warn')+esc(c.check)+'</div>':'')+'</div>'+
-      '<div class="row-val two"><b>'+hrs(c.paidAll)+' hrs</b><span>'+money(c.th)+'</span></div></div></div>';
-  }).join(''):'<div class="empty">'+svg('hours')+'<b>No Shifts Yet</b><span>Type the exact punches from your timecard. Paid hours, overtime and take-home come from your Pay Rules.</span><button type="button" class="cap-btn" data-act="add-shift">Log a Shift</button></div>';
+  var groups=[],gi={};
+  list.forEach(function(sh){var key=sh.date+'|'+sh.job;if(!gi[key]){gi[key]={date:sh.date,job:sh.job,items:[]};groups.push(gi[key])}gi[key].items.push(sh)});
+  var shifts=groups.length?groups.map(function(g){
+    var items=g.items.slice().sort(function(a,b){return a.clockIn<b.clockIn?-1:1}),jc=JOBC[g.job]||JOBC.Caf,t={paid:0,th:0,brk:0,meal:0,bonus:0},check='';
+    items.forEach(function(sh){var c=byId[sh.id];t.paid+=c.paidAll;t.th+=c.th;t.brk+=c.brk;t.meal+=c.meal;t.bonus+=c.bonus;if(!check)check=c.check});
+    var notes=items.map(function(s){return s.notes}).filter(Boolean).join(' · ');
+    return '<div class="swipe hi"><div class="swipe-acts"><button type="button" class="sa red" data-act="del-shift" data-ids="'+esc(items.map(function(s){return s.id}).join(','))+'">'+svg('trash')+'Delete</button></div>'+
+      '<div class="row swipe-row tap" data-act="edit-shift" data-id="'+esc(items[0].id)+'" role="button" tabindex="0">'+tileIcon(jc[0],jc[1])+
+      '<div class="row-main"><div class="row-title">'+fmtD(d2n(g.date),'wmd')+'<span class="job-tag">'+esc(g.job)+(items.length>1?' · '+items.length+' shifts':'')+'</span></div><div class="row-sub">'+items.map(function(sh){return fmtT(sh.clockIn)+' – '+fmtT(sh.clockOut)}).join(', ')+(t.meal?' · '+mins(t.meal)+' meal':'')+(t.brk?' · '+mins(t.brk)+' likely deducted':'')+(t.bonus?' · +'+hrs(t.bonus)+' bonus hrs':'')+(notes?' · '+esc(notes):'')+'</div>'+
+      (check?'<div class="row-warn">'+svg('warn')+esc(check)+'</div>':'')+'</div>'+
+      '<div class="row-val two"><b>'+hrs(t.paid)+' hrs</b><span>'+money(t.th)+'</span></div></div></div>';
+  }).join(''):'<div class="empty">'+svg('hours')+'<b>No Shifts Yet</b><span>Type the exact punches from your timecard. Took a break? Log each part as its own shift. Paid hours, overtime and take-home come from your Pay Rules.</span><button type="button" class="cap-btn" data-act="add-shift">Log a Shift</button></div>';
   var ex=S.extra.slice().sort(function(a,b){return a.date<b.date?1:-1});
   var extra=ex.length?ex.map(function(e){
     var ic=e.source==='eBay sale'?['tag','--green']:e.source==='Birthday money'?['gift','--pink']:['dollar','--gray'];
@@ -1245,7 +1250,7 @@ hours:function(){
   var noPlan=Tk.chosen?'':sec('',vrow('Set Up Your Plan',null,'Hours count toward the plan you pick. Until then they use '+esc(Tk.c.label)+'.',{act:'wizard',icon:'sparkles',color:'--tint'}),'',{tight:true});
   var body=noPlan+'<section class="sec tight"><div class="group rings">'+rings+'</div><div class="sec-f">Counting toward '+(Tk.chosen?'your plan, ':'')+esc(Tk.c.label)+'. Caf from '+fmtD(C.from,'md')+' to '+fmtD(C.through,'md')+'; '+Tk.main+' '+fmtD(M.from,'md')+' to '+fmtD(M.through,'md')+'.</div></section>'+
     sec('This workweek',week)+
-    sec('Shifts',shifts,list.length?'Swipe left on a shift to delete it. Tap to edit.':'',{hRight:list.length?'<span>'+list.length+' logged</span>':''})+
+    sec('Shifts',shifts,groups.length?'Each row is one day at one job. Swipe left to delete it; tap to edit or add a shift.':'',{hRight:groups.length?'<span>'+groups.length+' day'+(groups.length===1?'':'s')+'</span>':''})+
     sec('Extra money',extra,'Log what actually lands (after fees and shipping). It cuts the '+Tk.main+' hours you still need. Don’t also add it to savings on Inputs, or it counts twice.',{hRight:ex.length?'<button type="button" class="hbtn" data-act="add-extra">Add</button>':''})+
     sec('Progress',prog)+
     sec('',vrow('Pay Periods',null,'Hours, overtime and estimated checks per period',{act:'push',attrs:'data-view="periods"',icon:'calendar',color:'--red'})+
@@ -1538,32 +1543,63 @@ var SHEETS={
     }
   },
   shift:{
-    title:function(d){return d.id?'Edit Shift':'New Shift'},
-    valid:function(d){if(!isDate(d.date)||!isTime(d.clockIn)||!isTime(d.clockOut)||d.clockIn===d.clockOut)return false;if(d.meal&&(!isTime(d.mealOut)||!isTime(d.mealIn)))return false;return true},
-    body:function(d){
-      var preview='';
-      if(SHEETS.shift.valid(d)){
-        var sh=draftShift(d),list=S.shifts.filter(function(s){return s.id!==sh.id}).concat([sh]);
-        var c=computeShifts(list).filter(function(x){return x.id===sh.id})[0];
-        preview=sec('Estimate',vrow('Paid hours',hrs(c.paidAll)+' hrs','Span '+hrs(c.span)+' hrs'+(c.meal?' − '+mins(c.meal)+' meal':'')+(c.brk?' − '+mins(c.brk)+' likely deducted':'')+(c.bonus?' + '+hrs(c.bonus)+' bonus hrs (36-for-40)':''))+
-          vrow('Overtime',hrs(c.ot)+' hrs','Worked so far this week: '+hrs(c.weekTotal)+' hrs')+
-          vrow('Gross pay',money(c.gross))+vrow('Est. take-home',money(c.th),'',{strong:true})+
-          (c.check?'<div class="row"><div class="row-main"><div class="row-warn" style="margin:0">'+svg('warn')+esc(c.check)+'</div></div></div>':''),
-          'Pay period of '+fmtD(c.period,'md')+'. Estimates use your Pay Rules.');
-      }else if(d.clockIn===d.clockOut&&isTime(d.clockIn)){
-        preview=sec('','<div class="row"><div class="row-main"><div class="row-warn" style="margin:0">'+svg('warn')+'Clock out matches clock in</div></div></div>');
+    title:function(d){return d.origIds&&d.origIds.length?'Edit Shifts':'Log Shifts'},
+    blockIssue:function(d){
+      var bl=d.blocks||[];if(!bl.length)return 'Add a shift';
+      for(var i=0;i<bl.length;i++){
+        var b=bl[i];
+        if(!isTime(b.clockIn)||!isTime(b.clockOut))return 'Set both times';
+        if(b.clockIn===b.clockOut)return 'Clock out matches clock in'+(bl.length>1?' on shift '+(i+1):'');
+        if(d.job!=='Caf'&&b.meal&&(!isTime(b.mealOut)||!isTime(b.mealIn)))return 'Set both meal times';
       }
-      var note=d.job==='Caf'?'Worked '+hrs(rule('Caf').brkMin)+'+ hours straight with no clock-out? Assume the caf takes 30 min off by hand, break or not. Better to count on it than hope they miss it.'
-        :d.job==='Ariel'?'Ariel: 12-hour shifts. Work 36 in a week and you’re paid for 40; the bonus lands on the shift that gets you to 36.'
-        :'Walmart: log Meal out / Meal in (30 min on 6+ hr shifts, up to 1 hr on longer ones). Paid 15-min breaks aren’t logged.';
-      return '<div class="seg-row">'+seg('draft.job',[['Caf','Caf'],['Walmart','Walmart'],['Ariel','Ariel']],d.job,'wide')+'</div>'+
-        sec('',pillRow('draft.date','date','Date')+pillRow('draft.clockIn','time','Clock in')+pillRow('draft.clockOut','time','Clock out'))+
-        sec('',toggleRow('draft.meal','Meal punch',d.job==='Caf'?'Only if you clocked out':'Clocked out for a meal')+(d.meal?pillRow('draft.mealOut','time','Meal out')+pillRow('draft.mealIn','time','Meal in'):''),note)+
-        sec('','<div class="row"><input class="textin" id="f-draft-notes" data-bind="draft.notes" data-kind="text" placeholder="Notes" value="'+esc(d.notes)+'" aria-label="Notes"></div>')+
-        preview+(d.id?sec('','<button type="button" class="row action red tap" data-act="sheet-delete">Delete Shift</button>'):'');
+      var r=bl.map(function(b){var s=hm(b.clockIn)*1440,e=hm(b.clockOut)*1440;return [s,e<s?e+1440:e]}).sort(function(a,b){return a[0]-b[0]});
+      for(var j=1;j<r.length;j++)if(r[j][0]<r[j-1][1])return 'Shifts overlap. Check the times';
+      return '';
     },
-    save:function(d){var sh=draftShift(d),i=S.shifts.findIndex(function(s){return s.id===sh.id});if(i>=0)S.shifts[i]=sh;else S.shifts.push(sh);S.shifts.sort(function(a,b){return (a.date+a.clockIn)<(b.date+b.clockIn)?-1:1});touch('shifts');toast(i>=0?'Shift updated':'Shift logged')},
-    del:function(d){delItem('shifts',d.id,'Shift deleted')}
+    valid:function(d){return isDate(d.date)&&!SHEETS.shift.blockIssue(d)},
+    body:function(d){
+      var isC=d.job==='Caf',issue=SHEETS.shift.blockIssue(d),many=d.blocks.length>1,preview='';
+      var blocks=d.blocks.map(function(b,i){
+        var P='draft.blocks.'+i;
+        return sec(many?'Shift '+(i+1):'',pillRow(P+'.clockIn','time','Clock in')+pillRow(P+'.clockOut','time','Clock out')+
+          (isC?'':toggleRow(P+'.meal','Meal punch','Clocked out for a meal')+(b.meal?pillRow(P+'.mealOut','time','Meal out')+pillRow(P+'.mealIn','time','Meal in'):'')),
+          '',{tight:i>0,hRight:many?'<button type="button" class="hbtn red" data-act="shift-del-block" data-i="'+i+'">Remove</button>':''});
+      }).join('');
+      var add=sec('','<button type="button" class="row action tap" data-act="shift-add-block">'+svg('plus')+'&nbsp;Add Another Shift This Day</button>',
+        isC?'Took a break? Log each part you were clocked in as its own shift. Worked '+hrs(rule('Caf').brkMin)+'+ hours straight with no clock-out? Assume the caf takes 30 min off by hand, break or not.'
+        :d.job==='Ariel'?'Ariel: 12-hour shifts. Work 36 in a week and you’re paid for 40; the bonus lands on the shift that gets you to 36.'
+        :'Walmart: use Meal punch for a meal clock-out (30 min on 6+ hr shifts, up to 1 hr on longer ones). Paid 15-min breaks aren’t logged.');
+      if(!issue&&isDate(d.date)){
+        var recs=draftShifts(d),ids=recs.map(function(r){return r.id}),orig=d.origIds||[];
+        var list=S.shifts.filter(function(s){return orig.indexOf(s.id)<0}).concat(recs);
+        var cs=computeShifts(list).filter(function(x){return ids.indexOf(x.id)>=0}).sort(function(a,b){return a.key-b.key});
+        var tot={paid:0,ot:0,gross:0,th:0},checks=[];
+        var rows=cs.map(function(c,i){
+          tot.paid+=c.paidAll;tot.ot+=c.ot;tot.gross+=c.gross;tot.th+=c.th;if(c.check&&checks.indexOf(c.check)<0)checks.push(c.check);
+          return vrow((many?'Shift '+(i+1)+' · ':'')+fmtT(c.sh.clockIn)+' – '+fmtT(c.sh.clockOut),hrs(c.paidAll)+' hrs',
+            c.brk?mins(c.brk)+' likely deducted ('+hrs(c.span)+' hrs straight)':c.meal?mins(c.meal)+' meal':c.bonus?'+'+hrs(c.bonus)+' bonus hrs (36-for-40)':'');
+        }).join('');
+        preview=sec('Estimate',rows+
+          (many?vrow('Paid hours this day',hrs(tot.paid)+' hrs','',{strong:true}):'')+
+          (tot.ot>0?vrow('Overtime',hrs(tot.ot)+' hrs'):'')+
+          vrow('Gross pay',money(tot.gross))+vrow('Est. take-home',money(tot.th),'',{strong:true})+
+          checks.map(function(m){return '<div class="row"><div class="row-main"><div class="row-warn" style="margin:0">'+svg('warn')+esc(m)+'</div></div></div>'}).join(''),
+          'Estimates use your Pay Rules.');
+      }else if(issue&&issue!=='Set both times'&&issue!=='Set both meal times'){
+        preview=sec('','<div class="row"><div class="row-main"><div class="row-warn" style="margin:0">'+svg('warn')+esc(issue)+'</div></div></div>');
+      }
+      return '<div class="seg-row">'+seg('draft.job',[['Caf','Caf'],['Walmart','Walmart'],['Ariel','Ariel']],d.job,'wide')+'</div>'+
+        sec('',pillRow('draft.date','date','Date'))+blocks+add+
+        sec('','<div class="row"><input class="textin" id="f-draft-notes" data-bind="draft.notes" data-kind="text" placeholder="Notes" value="'+esc(d.notes)+'" aria-label="Notes"></div>')+
+        preview+(d.origIds&&d.origIds.length?sec('','<button type="button" class="row action red tap" data-act="sheet-delete">'+(d.origIds.length>1?'Delete These Shifts':'Delete Shift')+'</button>'):'');
+    },
+    save:function(d){
+      var orig=d.origIds||[],recs=draftShifts(d).map(function(r){if(r.id.indexOf('new-')===0)r.id=uid();return r});
+      S.shifts=S.shifts.filter(function(s){return orig.indexOf(s.id)<0}).concat(recs);
+      S.shifts.sort(function(a,b){return (a.date+a.clockIn)<(b.date+b.clockIn)?-1:1});
+      touch('shifts');toast(orig.length?'Shifts updated':recs.length>1?recs.length+' shifts logged':'Shift logged');
+    },
+    del:function(d){delItem('shifts',d.origIds||[],(d.origIds||[]).length>1?'Shifts deleted':'Shift deleted')}
   },
   extra:{
     title:function(d){return d.id?'Edit Extra Money':'Extra Money'},
@@ -1720,7 +1756,10 @@ function confetti(){
     if(el<3200)requestAnimationFrame(f);else cv.remove();
   })(t0);
 }
-function draftShift(d){return {id:d.id||'new-'+(d._tmp||(d._tmp=uid())),job:d.job,date:d.date,clockIn:d.clockIn,mealOut:d.meal?d.mealOut:'',mealIn:d.meal?d.mealIn:'',clockOut:d.clockOut,notes:d.notes||''}}
+function draftShifts(d){if(!d._tmp)d._tmp=uid();return d.blocks.map(function(b,i){var meal=d.job!=='Caf'&&b.meal;return {id:b.id||('new-'+d._tmp+'-'+i),job:d.job,date:d.date,clockIn:b.clockIn,mealOut:meal?b.mealOut:'',mealIn:meal?b.mealIn:'',clockOut:b.clockOut,notes:i===0?String(d.notes||''):''}})}
+function dayGroup(id){var s=S.shifts.filter(function(x){return x.id===id})[0];if(!s)return null;return S.shifts.filter(function(x){return x.date===s.date&&x.job===s.job}).sort(function(a,b){return a.clockIn<b.clockIn?-1:1})}
+function groupDraft(g){return {job:g[0].job,date:g[0].date,origIds:g.map(function(x){return x.id}),notes:g.map(function(x){return x.notes}).filter(Boolean).join(' · '),
+  blocks:g.map(function(x){return {id:x.id,clockIn:x.clockIn,clockOut:x.clockOut,meal:!!(x.mealOut||x.mealIn),mealOut:x.mealOut,mealIn:x.mealIn}})}}
 function openSheet(kind,draft){
   sheet={kind:kind,draft:draft,lastStep:draft.step};
   var layer=$('#sheet-layer');
@@ -1772,8 +1811,11 @@ function toast(msg,undo){
   el.classList.add('show');clearTimeout(toastT);toastT=setTimeout(function(){el.classList.remove('show')},undo?4500:2000);
 }
 function delItem(k,id,msg){
-  var i=S[k].findIndex(function(x){return x.id===id});if(i<0)return;
-  undoBuf={k:k,i:i,item:S[k][i]};S[k].splice(i,1);touch(k);toast(msg,true);
+  var ids=Array.isArray(id)?id:[id],items=[];
+  S[k].forEach(function(x,i){if(ids.indexOf(x.id)>=0)items.push({i:i,item:x})});
+  if(!items.length)return;
+  S[k]=S[k].filter(function(x){return ids.indexOf(x.id)<0});
+  undoBuf={k:k,items:items};touch(k);toast(msg,true);
 }
 
 /* ================= state writes from controls ================= */
@@ -1821,7 +1863,8 @@ var A={
   pick:function(t){setAny(t.dataset.bind,t.dataset.val)},
   toggle:function(t){
     var p=t.dataset.bind;animKey=p;
-    if(p==='draft.meal'){var d=sheet.draft;d.meal=!d.meal;if(d.meal&&!isTime(d.mealOut)){var m=Math.round(hm(d.clockIn)*1440+180);d.mealOut=hhmm(m);d.mealIn=hhmm(m+30)}renderSheet();return}
+    var mb=p.match(/^draft\.blocks\.(\d+)\.meal$/);
+    if(mb){var b=sheet.draft.blocks[+mb[1]];b.meal=!b.meal;if(b.meal&&!isTime(b.mealOut)){var m=Math.round(hm(b.clockIn)*1440+180);b.mealOut=hhmm(m);b.mealIn=hhmm(m+30)}renderSheet();return}
     if(p==='draft.hasDue'){var d2=sheet.draft;d2.hasDue=!d2.hasDue;if(d2.hasDue&&!isDate(d2.due))d2.due=n2d(todayN()+7);renderSheet();return}
     setAny(p,!getAny(p));
   },
@@ -1862,20 +1905,27 @@ var A={
   reset:function(){confirmDlg('Restore default values?','Every input, what-if and pay rule goes back to the defaults, so your balances return to $0. Import your JSON again after. Your plan, hours, extra money and the checklist stay.','Restore',function(){
     S.inputs=clone(DEF.inputs);S.scenarios=clone(DEF.scenarios);S.rules=clone(DEF.rules);touch('settings');render();toast('Default values restored')})},
   'add-shift':function(){
-    var last=S.shifts.slice().sort(function(a,b){return (b.date+b.clockIn)<(a.date+a.clockIn)?-1:1})[0];
-    openSheet('shift',{id:null,job:last?last.job:'Caf',date:n2d(todayN()),clockIn:last?last.clockIn:'09:00',clockOut:last?last.clockOut:'15:00',mealOut:'',mealIn:'',meal:false,notes:''});
+    var last=S.shifts.slice().sort(function(a,b){return (b.date+b.clockIn)<(a.date+a.clockIn)?-1:1})[0],g=last?dayGroup(last.id):null;
+    var blocks=g?g.map(function(x){return {clockIn:x.clockIn,clockOut:x.clockOut,meal:!!(x.mealOut||x.mealIn),mealOut:x.mealOut,mealIn:x.mealIn}}):[{clockIn:'09:00',clockOut:'15:00',meal:false,mealOut:'',mealIn:''}];
+    openSheet('shift',{job:last?last.job:'Caf',date:n2d(todayN()),blocks:blocks,notes:'',origIds:[]});
   },
-  'edit-shift':function(t){var s=S.shifts.filter(function(x){return x.id===t.dataset.id})[0];if(s)openSheet('shift',Object.assign(clone(s),{meal:!!(s.mealOut||s.mealIn)}))},
+  'edit-shift':function(t){var g=dayGroup(t.dataset.id);if(g)openSheet('shift',groupDraft(g))},
+  'shift-add-block':function(){
+    var d=sheet&&sheet.draft;if(!d)return;var l=d.blocks[d.blocks.length-1],s=l&&isTime(l.clockOut)?Math.round(hm(l.clockOut)*1440)+30:540;
+    d.blocks.push({clockIn:hhmm(s),clockOut:hhmm(s+240),meal:false,mealOut:'',mealIn:''});renderSheet();
+    setTimeout(function(){var sc=$('.sheet-scroll'),secs=$$('.sheet-scroll .sec'),el=secs[d.blocks.length];if(sc&&el)sc.scrollTo({top:Math.max(0,el.offsetTop-80),behavior:'smooth'})},30);
+  },
+  'shift-del-block':function(t){var d=sheet&&sheet.draft;if(!d||d.blocks.length<2)return;d.blocks.splice(+t.dataset.i,1);renderSheet()},
   'add-extra':function(){openSheet('extra',{id:null,date:n2d(todayN()),source:'eBay sale',amount:'',notes:''})},
   'edit-extra':function(t){var e=S.extra.filter(function(x){return x.id===t.dataset.id})[0];if(e)openSheet('extra',clone(e))},
   'add-task':function(){openSheet('task',{id:null,task:'',area:'Trip',status:'To do',notes:'',due:'',hasDue:false})},
   'edit-task':function(t){var x=S.tasks.filter(function(y){return y.id===t.dataset.id})[0];if(x)openSheet('task',Object.assign(clone(x),{hasDue:isDate(x.due)}))},
   'task-toggle':function(t){var x=S.tasks.filter(function(y){return y.id===t.dataset.id})[0];if(!x)return;x.status=x.status==='Done'?'To do':'Done';touch('tasks');render()},
   'task-doing':function(t){var x=S.tasks.filter(function(y){return y.id===t.dataset.id})[0];if(!x)return;x.status=x.status==='In progress'?'To do':'In progress';touch('tasks');render()},
-  'del-shift':function(t){delItem('shifts',t.dataset.id,'Shift deleted');render()},
+  'del-shift':function(t){var ids=(t.dataset.ids||t.dataset.id||'').split(',').filter(Boolean);delItem('shifts',ids,ids.length>1?'Shifts deleted':'Shift deleted');render()},
   'del-extra':function(t){delItem('extra',t.dataset.id,'Deleted');render()},
   'del-task':function(t){delItem('tasks',t.dataset.id,'Task deleted');render()},
-  undo:function(){if(!undoBuf)return;var u=undoBuf;undoBuf=null;S[u.k].splice(Math.min(u.i,S[u.k].length),0,u.item);touch(u.k);render();$('#toast').classList.remove('show')},
+  undo:function(){if(!undoBuf)return;var u=undoBuf;undoBuf=null;u.items.forEach(function(o){S[u.k].splice(Math.min(o.i,S[u.k].length),0,o.item)});touch(u.k);render();$('#toast').classList.remove('show')},
   'copy-csv':function(){
     var calcs=computeShifts(S.shifts),q=function(s){s=String(s==null?'':s);return /[",\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s};
     var lines=['Date,Job,Clock in,Meal out,Meal in,Clock out,Notes,Paid hours,Bonus hours,Gross pay,Est. take-home'].concat(calcs.map(function(c){var s=c.sh;return [s.date,s.job,s.clockIn,s.mealOut,s.mealIn,s.clockOut,s.notes,c.paid.toFixed(2),c.bonus.toFixed(2),c.gross.toFixed(2),c.th.toFixed(2)].map(q).join(',')}));
