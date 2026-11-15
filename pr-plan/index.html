@@ -414,6 +414,36 @@ button{font:inherit;color:inherit;letter-spacing:inherit;cursor:pointer}
   *,*::before,*::after{transition-duration:.01s!important;animation:none!important}
 }
 
+/* ---------- money ---------- */
+.group.money-hero>*::after{display:none}
+.money-hero{padding:16px}
+.mh-top{display:flex;align-items:center;gap:16px}
+.ring-wrap.sm{width:104px;height:104px;margin:0;flex:none}
+.ring-wrap.sm .ring-pct{font-size:22px}
+.mh-main{flex:1;min-width:0}
+.mh-num{margin-top:2px;font:700 32px/1.1 var(--font-round);letter-spacing:-.4px;font-variant-numeric:tabular-nums}
+.mh-proj{display:flex;align-items:center;gap:8px;margin-top:14px;padding:10px 12px;border-radius:16px;font-size:15px;font-weight:600;letter-spacing:-.2px}
+.mh-proj .ic{flex:none;stroke-width:2.6}
+.mh-proj.g{background:color-mix(in srgb,var(--green) 14%,transparent);color:var(--green)}
+.mh-proj.r{background:color-mix(in srgb,var(--red) 12%,transparent);color:var(--red)}
+.mh-upd{display:block;width:100%;margin-top:12px;padding:0;border:0;background:none;text-align:left;font-size:15px;color:var(--tint);letter-spacing:-.2px}
+.mh-upd .stale{color:var(--orange)}
+.quick{display:grid;grid-template-columns:repeat(6,1fr);gap:4px;margin:16px 10px 0}
+.cats{display:grid;grid-template-columns:repeat(4,1fr);gap:16px 4px;padding:16px 8px}
+.cat{display:flex;flex-direction:column;align-items:center;gap:6px;padding:0;border:0;background:none;min-width:0}
+.cat-ic{width:52px;height:52px;border-radius:50%;background:var(--c);color:#fff;display:grid;place-items:center;font-size:24px;box-shadow:inset 0 1.5px 1px -.5px rgba(255,255,255,.45);transition:transform .3s cubic-bezier(.3,1.6,.5,1),box-shadow .2s}
+.cat-ic .ic{stroke-width:2.1}
+.quick .cat-ic{width:48px;height:48px;font-size:22px}
+.cat:active .cat-ic{transform:scale(.9)}
+.cat[aria-checked="true"] .cat-ic{box-shadow:0 0 0 3px var(--card),0 0 0 5.5px var(--c);transform:scale(1.05)}
+.cat-l{font-size:12px;line-height:1.2;text-align:center;letter-spacing:-.1px;color:var(--label)}
+.quick .cat-l{font-size:11px;color:var(--label2);white-space:nowrap}
+.amt{display:flex;align-items:baseline;justify-content:center;gap:2px;padding:10px 16px 16px;font:700 54px/1.1 var(--font-round);color:var(--label)}
+.amt span{font-size:38px;color:var(--label3)}
+.amt-in{width:5.4ch;padding:0;border:0;background:none;font:inherit;color:inherit;letter-spacing:-.5px;outline:none;caret-color:var(--tint);font-variant-numeric:tabular-nums}
+.amt-in::placeholder{color:var(--label3)}
+.confetti{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:95}
+
 /* ---------- Liquid Glass pass ---------- */
 *{-webkit-touch-callout:none}
 body{-webkit-user-select:none;user-select:none}
@@ -469,7 +499,7 @@ button,.row.tap,.choice{touch-action:manipulation}
     <div id="main">
       <div class="tabview" data-tab="plan"></div>
       <div class="tabview" data-tab="hours"></div>
-      <div class="tabview" data-tab="budget"></div>
+      <div class="tabview" data-tab="money"></div>
       <div class="tabview" data-tab="timeline"></div>
       <div class="tabview" data-tab="checklist"></div>
       <div class="tabfade"></div>
@@ -556,7 +586,13 @@ var IC={
   reset:'<path d="M4.5 12a7.5 7.5 0 1 0 2.3-5.4M4.5 4v4.3h4.3"/>',
   calendar:'<rect x="3.5" y="5" width="17" height="15.5" rx="3.5"/><path d="M3.5 10h17M8.5 3v4M15.5 3v4M8 14h2M12 14h2M16 14h.5M8 17.2h2M12 17.2h2"/>',
   doc:'<path d="M6.5 3.5h7l4 4V19a1.5 1.5 0 0 1-1.5 1.5H6.5A1.5 1.5 0 0 1 5 19V5a1.5 1.5 0 0 1 1.5-1.5z"/><path d="M13.5 3.5v4h4M8.5 12.5h7M8.5 16h7"/>',
-  grad:'<path d="M2.5 9 12 4.5 21.5 9 12 13.5z"/><path d="M6.5 11v5c3.2 2.3 7.8 2.3 11 0v-5"/>'
+  grad:'<path d="M2.5 9 12 4.5 21.5 9 12 13.5z"/><path d="M6.5 11v5c3.2 2.3 7.8 2.3 11 0v-5"/>',
+  fuel:'<path d="M4.5 20.5V5.5A1.5 1.5 0 0 1 6 4h6.5A1.5 1.5 0 0 1 14 5.5v15M3 20.5h12.5M4.5 10.5H14M14 8.5l3.2 2.2v6.3a1.4 1.4 0 0 0 2.8 0V9.2l-2.2-2.7"/>',
+  burger:'<path d="M4.5 11a7.5 5.5 0 0 1 15 0z"/><path d="M3.5 14.5h17"/><path d="M5 17.5h14v.3a2.2 2.2 0 0 1-2.2 2.2H7.2A2.2 2.2 0 0 1 5 17.8z"/>',
+  frown:'<circle cx="12" cy="12" r="9"/><path d="M8.3 16.6c2-2.1 5.4-2.1 7.4 0M9 9.8h.01M15 9.8h.01"/>',
+  repeat:'<path d="M4.5 11.5V10a3.5 3.5 0 0 1 3.5-3.5h11.5M16.5 3.5l3 3-3 3M19.5 12.5V14a3.5 3.5 0 0 1-3.5 3.5H4.5M7.5 20.5l-3-3 3-3"/>',
+  ticket:'<path d="M4 6.5h16v3.2a2.3 2.3 0 0 0 0 4.6v3.2H4v-3.2a2.3 2.3 0 0 0 0-4.6z"/><path d="M14.5 7v2M14.5 11v2M14.5 15v2"/>',
+  wallet:'<rect x="3" y="6.5" width="18" height="13.5" rx="3.2"/><path d="M3 10.5h18M15.5 15.2h2M5.5 6.5l9.8-2.8a1.6 1.6 0 0 1 2 1.2l.4 1.6"/>'
 };
 function svg(n,cls){return '<svg class="ic'+(cls?' '+cls:'')+'" viewBox="0 0 24 24" aria-hidden="true">'+(IC[n]||'')+'</svg>'}
 
@@ -566,7 +602,7 @@ var DEF={
   inputs:{robinhood:0,stepCash:0,stepSavings:0,buffer:0.10,cafTH:9.84,
     wmPay:14,wmTH:11.9,wmHrs:40,wmHoliday:8,
     arRate:20,arHrs:40,arMissed:2,arLost:16,arOT:0,arOTRate:30,arPct:0.83,
-    weeks:8,airbnb:634.10,groceries:437,phone:20,transit:66,household:66.45,flight:376,cushion:1000,mom:0,extraFlight:376,prTH:1964,
+    asOf:'2026-11-12',weeks:8,airbnb:634.10,groceries:437,phone:20,transit:66,household:66.45,flight:376,cushion:1000,mom:0,extraFlight:376,prTH:1964,
     debt:0},
   scenarios:[
     {job:'Walmart',first:'2026-11-30',last:'2027-02-09',depart:'2027-02-11',caf:80,flyHome:false,payDebt:true},
@@ -611,11 +647,25 @@ var TIMELINE=[
   ['summer','Visit Ohio','Decide on the Lifan: sell in riding season, or keep it stored','Life']
 ];
 var TYPE_C={Life:'--green',Work:'--tint',Family:'--pink',Trip:'--teal'};
+var CATS=[
+  {k:'gas',l:'Gas',s:'Gas',i:'fuel',c:'--orange'},
+  {k:'fastfood',l:'Fast food',s:'Fast food',i:'burger',c:'--red'},
+  {k:'groceries',l:'Groceries',s:'Groceries',i:'cart',c:'--green'},
+  {k:'phone',l:'Phone',s:'Phone',i:'phone',c:'--indigo'},
+  {k:'impulse',l:'Impulse purchase :(',s:'Impulse :(',i:'frown',c:'--pink'},
+  {k:'subs',l:'Subscriptions',s:'Subs',i:'repeat',c:'--purple'},
+  {k:'fun',l:'Fun',s:'Fun',i:'ticket',c:'--teal'},
+  {k:'other',l:'Other',s:'Other',i:'dollar',c:'--gray'},
+  {k:'debt',l:'School debt',s:'School',i:'grad',c:'--tint',planned:1},
+  {k:'airbnb',l:'Airbnb',s:'Airbnb',i:'house',c:'--mint',planned:1},
+  {k:'flight',l:'Flight',s:'Flight',i:'plane',c:'--orange',planned:1},
+  {k:'planned',l:'Other planned',s:'Planned',i:'checklist',c:'--indigo',planned:1}];
+var CATMAP={};CATS.forEach(function(c){CATMAP[c.k]=c});
 var AREAS={Work:['briefcase','--tint'],Money:['dollar','--green'],Life:['person','--orange'],Spanish:['globe','--red'],Trip:['plane','--teal']};
 var STATUSES=['To do','In progress','Done'];
 
 /* ================= state ================= */
-var S=clone({inputs:DEF.inputs,scenarios:DEF.scenarios,rules:DEF.rules,plan:null,shifts:DEF.shifts,extra:DEF.extra,tasks:DEF.tasks});
+var S=clone({inputs:DEF.inputs,scenarios:DEF.scenarios,rules:DEF.rules,plan:null,shifts:DEF.shifts,extra:DEF.extra,tasks:DEF.tasks,expenses:[],balances:[]});
 var UI={prJob:'Caf',perJob:'Caf',tlFilter:'All'};
 
 function sanScenario(s,d){
@@ -650,17 +700,24 @@ function applyDoc(k,data){
       return {id:String(s.id||uid()),job:s.job==='Walmart'||s.job==='Ariel'?s.job:'Caf',date:s.date,clockIn:s.clockIn,mealOut:isTime(s.mealOut)?s.mealOut:'',mealIn:isTime(s.mealIn)?s.mealIn:'',clockOut:s.clockOut,notes:String(s.notes||'')}});
   }else if(k==='extra'){
     S.extra=(Array.isArray(data.items)?data.items:[]).filter(function(e){return e&&isDate(e.date)}).map(function(e){
-      return {id:String(e.id||uid()),date:e.date,source:['eBay sale','Birthday money','Other'].indexOf(e.source)>=0?e.source:'Other',amount:num(e.amount),notes:String(e.notes||'')}});
+      return {id:String(e.id||uid()),date:e.date,source:['eBay sale','Birthday money','Other'].indexOf(e.source)>=0?e.source:'Other',amount:num(e.amount),notes:String(e.notes||''),at:num(e.at)}});
   }else if(k==='tasks'){
     S.tasks=(Array.isArray(data.items)?data.items:[]).filter(function(t){return t&&t.task}).map(function(t){
       return {id:String(t.id||uid()),task:String(t.task),area:String(t.area||'Life'),status:STATUSES.indexOf(t.status)>=0?t.status:'To do',notes:String(t.notes||''),due:isDate(t.due)?t.due:''}});
+  }else if(k==='expenses'){
+    S.expenses=(Array.isArray(data.items)?data.items:[]).filter(function(e){return e&&isDate(e.date)&&num(e.amount)>0}).map(function(e){
+      return {id:String(e.id||uid()),date:e.date,cat:CATMAP[e.cat]?e.cat:'other',amount:num(e.amount),notes:String(e.notes||''),at:num(e.at)}});
+  }else if(k==='balances'){
+    S.balances=(Array.isArray(data.items)?data.items:[]).filter(function(b){return b&&isDate(b.date)}).map(function(b){
+      var o={id:String(b.id||uid()),date:b.date,robinhood:num(b.robinhood),stepCash:num(b.stepCash),stepSavings:num(b.stepSavings),notes:String(b.notes||''),at:num(b.at)};
+      o.total=b.total!==undefined&&isFinite(+b.total)?+b.total:o.robinhood+o.stepCash+o.stepSavings;return o});
   }
 }
 function docBody(k){
   if(k==='settings')return {v:2,inputs:S.inputs,scenarios:S.scenarios,rules:S.rules,plan:S.plan};
   return {v:1,items:S[k]};
 }
-function docOf(p){var h=p.split('.')[0];return h==='shifts'||h==='extra'||h==='tasks'?h:'settings'}
+function docOf(p){var h=p.split('.')[0];return ['shifts','extra','tasks','expenses','balances'].indexOf(h)>=0?h:'settings'}
 
 /* ================= the spreadsheet math ================= */
 /*CALC-START*/
@@ -796,13 +853,47 @@ function timelineItems(){
   if(P)out.push({n:d2n(P.last),title:'Last day at '+P.job,why:'Then pack: you fly '+fmtD(dep,'wmd'),type:'Work'});
   return out.sort(function(a,b){return (a.n===null?1e9:a.n)-(b.n===null?1e9:b.n)});
 }
+function payday(c){var r=c.r,len=num(r.len)||14,off=(r.payday===null||r.payday===undefined||r.payday==='')?7:num(r.payday);return c.period+len-1+off}
+function catOf(k){return CATMAP[k]||CATMAP.other}
+function afterBase(e,base){var d=d2n(e.date);return d>base.date||(d===base.date&&num(e.at)>base.at)}
+function moneyState(){
+  var t=todayN(),Tk=tracker(),c=Tk.c;
+  var checks=S.balances.filter(function(b){return d2n(b.date)<=t}).sort(function(a,b){return (d2n(b.date)-d2n(a.date))||(num(b.at)-num(a.at))});
+  var b0=checks[0];
+  var base=b0?{date:d2n(b0.date),at:num(b0.at),total:num(b0.total),id:b0.id,label:'Last balance update'}
+    :{date:isDate(S.inputs.asOf)?d2n(S.inputs.asOf):t,at:0,total:savings(),id:null,label:'Starting balances'};
+  var landed=0,pending=0,nextPay=null,pays={};
+  Tk.calcs.forEach(function(x){
+    var p=payday(x);
+    if(p>base.date&&p<=t){landed+=x.th;pays[x.sh.job+p]=1}
+    else if(p>t){pending+=x.th;if(nextPay===null||p<nextPay)nextPay=p}
+  });
+  var extra=0;S.extra.forEach(function(e){if(d2n(e.date)<=t&&afterBase(e,base))extra+=num(e.amount)});
+  var spent=0,everyday=0,planned=0,today=0,week=0,byCat={};
+  S.expenses.forEach(function(e){
+    var d=d2n(e.date),a=num(e.amount),cat=catOf(e.cat);
+    if(d>t)return;
+    if(afterBase(e,base))spent+=a;
+    if(cat.planned)planned+=a;
+    else{everyday+=a;byCat[cat.k]=(byCat[cat.k]||0)+a;if(d===t)today+=a;if(d>t-7)week+=a}
+  });
+  var est=base.total+landed+extra-spent;
+  var allowance=Math.max(0,-c.buffer),allowLeft=Math.max(0,allowance-everyday);
+  var future=0,futureHrs={};
+  Object.keys(Tk.jobs).forEach(function(j){var o=Tk.jobs[j],h=Math.max(0,o.planned-o.logged);futureHrs[j]=h;future+=h*o.planRate});
+  var proj=est+pending+future-allowLeft,need=Math.max(0,c.out-planned);
+  return {Tk:Tk,c:c,dep:c.dep,base:base,landed:landed,paychecks:Object.keys(pays).length,pending:pending,nextPay:nextPay,
+    extra:extra,spent:spent,everyday:everyday,planned:planned,today:today,week:week,byCat:byCat,est:est,
+    allowance:allowance,allowLeft:allowLeft,future:future,futureHrs:futureHrs,proj:proj,need:need,out:c.out,
+    over:proj-need,toGo:Math.max(0,c.out-planned-est),prog:c.out>0?Math.max(0,Math.min(1,(est+planned)/c.out)):0};
+}
 /*CALC-END*/
 
 /* ================= persistence (artifact database + local cache) ================= */
 var LS='pr-plan-v1',LSUI='pr-plan-ui';
-var DOCS={settings:'plan/settings',shifts:'plan/shifts',extra:'plan/extra',tasks:'plan/checklist'};
+var DOCS={settings:'plan/settings',shifts:'plan/shifts',extra:'plan/extra',tasks:'plan/checklist',expenses:'plan/expenses',balances:'plan/balances'};
 var db=null,readOnly=false,sync={state:'connecting',at:0},W={},lastSent={},lastSeen={},preDb={},loaded={};
-function saveLocal(){try{localStorage.setItem(LS,JSON.stringify({settings:docBody('settings'),shifts:docBody('shifts'),extra:docBody('extra'),tasks:docBody('tasks')}))}catch(e){}}
+function saveLocal(){try{var o={};Object.keys(DOCS).forEach(function(k){o[k]=docBody(k)});localStorage.setItem(LS,JSON.stringify(o))}catch(e){}}
 function loadLocal(){try{var raw=localStorage.getItem(LS);if(!raw)return;var o=JSON.parse(raw);Object.keys(DOCS).forEach(function(k){if(o&&o[k])applyDoc(k,o[k])})}catch(e){}
   try{var u=JSON.parse(localStorage.getItem(LSUI)||'{}');if(u&&TABS.indexOf(u.tab)>=0)curTab=u.tab}catch(e){}}
 function saveUI(){try{localStorage.setItem(LSUI,JSON.stringify({tab:curTab}))}catch(e){}}
@@ -819,7 +910,7 @@ function syncText(){
 }
 function setSync(st){sync.state=st;$$('[data-sync]').forEach(function(el){el.innerHTML=syncText()})}
 function touch(k){
-  saveLocal();
+  celebrate=true;saveLocal();
   if(readOnly){toast("View only: this change won't be saved");return}
   if(!db){preDb[k]=true;return}
   var w=W[k]||(W[k]={timer:0,inflight:false,dirty:false});
@@ -929,6 +1020,7 @@ var INPUT_SECTIONS=[
     ['robinhood','Robinhood','$','Your balance'],
     ['stepCash','Step cash','$','Your balance'],
     ['stepSavings','Step savings','$','Your balance'],
+    {date:['asOf','Balances as of','The day these were checked. The Money tab’s estimate starts here until you update balances there.']},
     {calc:function(){return ['Total savings',money(savings()),'Calculated']}},
     ['buffer','Impulse buffer','%','Your blanket 10% for small stuff while saving up in Ohio (snacks, gas, subscriptions)']]},
   {h:'Caf (MVNU)',rows:[['cafTH','Caf take-home per hour','$/hr','Your number ($11/hr gross, after deductions)']]},
@@ -989,7 +1081,7 @@ function detailView(s,P,idx,isPlan){
     vrow('Total before buffer',money(c.before))+
     vrow('Impulse buffer ('+pct(I.buffer)+')',money(c.buffer))+
     vrow('Money at departure',money(c.atDep),'',{strong:true});
-  var out=vrow(num(I.weeks)+'-week trip',money(c.trip),'incl. $1k cushion',{act:'tab',attrs:'data-tab="budget"'})+
+  var out=vrow(num(I.weeks)+'-week trip',money(c.trip),'incl. $1k cushion',{act:'push',attrs:'data-view="budget"'})+
     vrow('Extra flight for Feb 10',money(c.extraFlight))+
     vrow('School debt payoff',money(c.debtPay))+
     vrow('Total needed',money(c.out),'',{strong:true});
@@ -1025,7 +1117,7 @@ plan:function(){
     '<span class="hero-chips"><span>'+svg('plane')+(dd>1?dd+' days until San Juan':dd===1?'Fly tomorrow':dd===0?'Fly today':'Trial underway')+'</span><span>'+svg('house')+'Home by '+fmtD(h.backHome,'md')+'</span></span></button>';
   var cta=savings()===0&&num(S.inputs.debt)===0?'<div class="cta"><span class="cta-ic" style="color:var(--green);background:color-mix(in srgb,var(--green) 14%,transparent)">'+svg('doc')+'</span><div class="cta-main"><div class="cta-t">Add your numbers</div><div class="cta-s">Paste the JSON with your balances and checklist. It stays on this device.</div></div><button type="button" class="cap-btn" data-act="import">Import</button></div>':P?'':'<div class="cta"><span class="cta-ic">'+svg('sparkles')+'</span><div class="cta-main"><div class="cta-t">Pick the plan you’re going with</div><div class="cta-s">Choose a job and a departure date. Hours and the timeline follow it.</div></div><button type="button" class="cap-btn" data-act="wizard">Set Up</button></div>';
   function tile(l,v,s,act,target){return '<button class="tile-card" type="button" data-act="'+act+'" '+(act==='tab'?'data-tab':'data-view')+'="'+target+'"><span class="tc-l">'+l+'</span><span class="tc-v">'+v+'</span><span class="tc-s">'+s+'</span></button>'}
-  var tiles='<div class="tiles">'+tile('Savings',money(savings()),'Robinhood + Step','push','inputs')+tile(num(S.inputs.weeks)+'-wk trip',money(tb.total),'incl. $1k cushion','tab','budget')+tile('School debt',money(S.inputs.debt),'pay off by Dec 18','push','inputs')+'</div>';
+  var tiles='<div class="tiles">'+tile('Balance',money(moneyState().est),'est. today','tab','money')+tile(num(S.inputs.weeks)+'-wk trip',money(tb.total),'incl. $1k cushion','push','budget')+tile('School debt',money(S.inputs.debt),'pay off by Dec 18','push','inputs')+'</div>';
   var entries=(pc?[{c:pc,lab:'Your plan · '+pc.label,mine:true}]:[]).concat(sc.map(function(c,i){return {c:c,lab:c.label,best:!P&&i===bi&&c.left>=0}}));
   var vals=entries.map(function(e){return e.c.left}),lo=Math.min(0,Math.min.apply(null,vals)),hi=Math.max(0,Math.max.apply(null,vals));
   var step=niceStep((hi-lo)/4);lo=Math.floor(lo/step)*step;hi=Math.ceil(hi/step)*step;if(hi===lo)hi=lo+step;
@@ -1060,6 +1152,7 @@ inputs:function(){
   var body=INPUT_SECTIONS.map(function(sct){
     return sec(sct.h,sct.rows.map(function(r){
       if(r.calc){var x=r.calc();return vrow(x[0],x[1],x[2])}
+      if(r.date)return pillRow('inputs.'+r.date[0],'date',r.date[1],r.date[2]);
       return numRow('inputs.'+r[0],r[1],r[3],r[2]);
     }).join(''));
   }).join('')+
@@ -1159,6 +1252,55 @@ periods:function(){
     sec(job+' pay periods',list,'The current period is marked Now. '+(r.payday===null?'Paydays show once you add one in Pay Rules. ':'')+'Estimates: check each one against your real stub.');
   return {title:'Pay Periods',body:body};
 },
+money:function(){
+  var M=moneyState(),t=todayN(),pos=M.over>=0,stale=t-M.base.date,Tk=M.Tk;
+  var ago=stale<=0?'today':stale===1?'yesterday':stale+' days ago';
+  var hero='<div class="mh-top"><div class="ring-wrap sm">'+ring(M.prog,'--green',104,13)+'<div class="ring-pct">'+Math.round(M.prog*100)+'<small>%</small></div></div>'+
+    '<div class="mh-main"><div class="cap">In your accounts (est.)</div><div class="mh-num">'+money(M.est)+'</div><div class="row-sub">Goal '+money(M.out,0)+' by '+fmtD(M.dep,'md')+(M.toGo>0?' · '+money(M.toGo,0)+' to go':' · you have enough')+'</div></div></div>'+
+    '<div class="mh-proj '+(pos?'g':'r')+'">'+svg(pos?'check':'warn')+'<span>'+(pos?'On track: '+signed(M.over)+' left when you fly':'Short '+money(-M.over,0)+' when you fly at this pace')+'</span></div>'+
+    '<button type="button" class="mh-upd" data-act="add-balance">'+(stale>3?'<span class="stale">Balances updated '+ago+'</span>':'Balances updated '+ago)+' · Update</button>';
+  var quick='<div class="quick" role="group" aria-label="Log an expense">'+['gas','fastfood','groceries','phone','impulse'].map(function(k){var c=CATMAP[k];
+    return '<button type="button" class="cat" data-act="add-expense" data-cat="'+k+'"><span class="cat-ic" style="--c:var('+c.c+')">'+svg(c.i)+'</span><span class="cat-l">'+c.s+'</span></button>'}).join('')+
+    '<button type="button" class="cat" data-act="add-expense"><span class="cat-ic" style="--c:var(--gray)">'+svg('plus')+'</span><span class="cat-l">More</span></button></div>';
+  var segs=CATS.filter(function(c){return !c.planned&&M.byCat[c.k]>0}).map(function(c){return {l:c.s,v:M.byCat[c.k],c:c.c}});
+  var allow='<div class="row"><div class="row-main"><div class="row-title">Spending allowance</div><div class="row-sub">Your 10% buffer: '+money(M.allowance,0)+' for small stuff before you fly</div></div><div class="row-val strong'+(M.everyday>M.allowance?' r':'')+'">'+(M.everyday>M.allowance?money(M.everyday-M.allowance,0)+' over':money(M.allowLeft,0)+' left')+'</div></div>'+
+    (segs.length?'<div class="row" style="display:block">'+stackBar(segs,M.allowance)+'</div>':'')+
+    vrow('Today',M.today?'−'+money(M.today):money(0))+vrow('Last 7 days',M.week?'−'+money(M.week):money(0));
+  var list=S.expenses.slice().sort(function(a,b){return b.date>a.date?1:b.date<a.date?-1:num(b.at)-num(a.at)}).slice(0,60),groups=[],cur=null;
+  list.forEach(function(e){if(!cur||cur.date!==e.date){cur={date:e.date,items:[],tot:0};groups.push(cur)}cur.items.push(e);cur.tot+=num(e.amount)});
+  var exp=groups.length?groups.map(function(g){
+    var d=d2n(g.date),lab=d===t?'Today':d===t-1?'Yesterday':fmtD(d,'wmd');
+    return sec(lab,g.items.map(function(e){var c=catOf(e.cat);
+      return '<div class="swipe hi"><div class="swipe-acts"><button type="button" class="sa red" data-act="del-expense" data-id="'+esc(e.id)+'">'+svg('trash')+'Delete</button></div>'+
+        '<div class="row swipe-row tap" data-act="edit-expense" data-id="'+esc(e.id)+'" role="button" tabindex="0">'+tileIcon(c.i,c.c)+
+        '<div class="row-main"><div class="row-title">'+esc(e.notes||c.l)+'</div>'+(e.notes||c.planned?'<div class="row-sub">'+(e.notes?esc(c.l):'')+(c.planned?(e.notes?' · ':'')+'Counts toward your goal':'')+'</div>':'')+'</div>'+
+        '<div class="row-val'+(c.planned?'':' strong')+'">−'+money(e.amount)+'</div></div></div>';
+    }).join(''),'',{hRight:'<span>−'+money(g.tot)+'</span>'});
+  }).join(''):sec('Expenses','<div class="empty">'+svg('wallet')+'<b>No Expenses Yet</b><span>Log gas, food and everything else from the day you land. The estimate updates as you go.</span></div>');
+  var caf=Tk.jobs.Caf.r,cafGuess=caf.payday===null||caf.payday===undefined||caf.payday==='';
+  var estRows=vrow(M.base.label,money(M.base.total),fmtD(M.base.date,'mdy'),M.base.id?{act:'edit-balance',attrs:'data-id="'+esc(M.base.id)+'"'}:{act:'push',attrs:'data-view="inputs"'})+
+    vrow('Paychecks landed','+'+money(M.landed),M.paychecks+' paycheck'+(M.paychecks===1?'':'s')+' since then, from shifts you logged')+
+    vrow('Extra money','+'+money(M.extra))+
+    vrow('Expenses','−'+money(M.spent))+
+    vrow('Estimated now',money(M.est),'',{strong:true})+
+    vrow('Pay on the way',money(M.pending),M.nextPay!==null?'Next payday about '+fmtD(M.nextPay,'wmd'):'Earned on shifts, not paid yet');
+  var hrsTxt=Object.keys(M.futureHrs).map(function(j){return hrs(M.futureHrs[j],0)+' '+j}).join(' + ');
+  var projRows=vrow('Now + pay on the way',money(M.est+M.pending))+
+    vrow('Pay still to earn','+'+money(M.future),hrsTxt+' planned hrs left')+
+    vrow('Allowance you might still spend','−'+money(M.allowLeft))+
+    vrow('Projected when you fly',money(M.proj),'',{strong:true})+
+    vrow('Still needed',money(M.need),M.planned>0?'Goal minus '+money(M.planned,0)+' in planned payments made':'Trip + school debt'+(M.c.extraFlight?' + Feb 10 flight':''))+
+    vrow(pos?'Left over':'Short',signed(M.over,2),'',{strong:true,vcls:pos?'g':'r'});
+  var body=sec('',hero,'',{cls:'money-hero',tight:true})+quick+
+    sec('',allow,'Planned payments (school debt, Airbnb, flights) don’t use the allowance. They shrink your goal instead.')+
+    exp+
+    sec('How the estimate works',estRows,'Paychecks count once their payday passes.'+(cafGuess?' The caf payday isn’t set in Pay Rules, so it assumes a week after each pay period.':'')+' Update your balances now and then to keep it close.')+
+    sec('When you fly',projRows,'Assumes you work the rest of your planned hours and spend the rest of your allowance. Last paychecks count even if they land after you fly.')+
+    sec('',vrow('Update Balances',null,'Type in what your accounts actually say',{act:'add-balance',icon:'wallet',color:'--green'})+
+      vrow('Log Extra Money',null,'eBay sales, birthday money',{act:'add-extra',icon:'gift',color:'--pink',chev:false})+
+      vrow('Trip Budget',null,'What the 8 weeks cost',{act:'push',attrs:'data-view="budget"',icon:'budget',color:'--orange'}));
+  return {title:'Money',large:true,eyebrow:'Goal '+money(M.out,0)+' by '+fmtD(M.dep,'md'),right:gbtn('plus','add-expense','','Log an expense'),body:body};
+},
 budget:function(){
   var tb=trip(),I=S.inputs,all=tb.monthly.concat(tb.once);
   var top='<div class="cap">'+num(I.weeks)+'-week trial, all-in</div><div class="res-num">'+money(tb.total)+'</div><div class="row-sub" style="margin-top:4px">Everything you’d spend if no job comes through, plus the cushion waiting back home.</div>'+
@@ -1220,8 +1362,8 @@ checklist:function(){
 };
 
 /* ================= navigation ================= */
-var TABS=['plan','hours','budget','timeline','checklist'];
-var TAB_META={plan:['Plan','plan'],hours:['Hours','hours'],budget:['Budget','budget'],timeline:['Timeline','timeline'],checklist:['Checklist','checklist']};
+var TABS=['plan','hours','money','timeline','checklist'];
+var TAB_META={plan:['Plan','plan'],hours:['Hours','hours'],money:['Money','wallet'],timeline:['Timeline','timeline'],checklist:['Checklist','checklist']};
 var curTab='plan',stacks={},pendingRender=false;
 var app=$('#app');
 function makePage(entry){
@@ -1250,7 +1392,7 @@ function renderEntry(entry,stack){
 function isEditing(){var a=document.activeElement;return !!(a&&app.contains(a)&&((a.tagName==='INPUT'&&['date','time','checkbox'].indexOf(a.type)<0)||a.tagName==='TEXTAREA'))}
 function render(){
   var st=stacks[curTab];renderEntry(st[st.length-1],st);
-  afterRender();
+  afterRender();checkGoals();
 }
 function requestRender(){if(isEditing()){pendingRender=true;return}pendingRender=false;render()}
 function afterRender(){
@@ -1422,7 +1564,7 @@ var SHEETS={
         sec('','<div class="row"><input class="textin" id="f-draft-notes" data-bind="draft.notes" data-kind="text" placeholder="Notes" value="'+esc(d.notes)+'" aria-label="Notes"></div>')+
         (d.id?sec('','<button type="button" class="row action red tap" data-act="sheet-delete">Delete</button>'):'');
     },
-    save:function(d){var e={id:d.id||uid(),date:d.date,source:d.source,amount:num(d.amount),notes:d.notes||''},i=S.extra.findIndex(function(x){return x.id===e.id});if(i>=0)S.extra[i]=e;else S.extra.push(e);touch('extra');toast(i>=0?'Updated':'Added '+money(e.amount))},
+    save:function(d){var e={id:d.id||uid(),date:d.date,source:d.source,amount:num(d.amount),notes:d.notes||'',at:d.at||Date.now()},i=S.extra.findIndex(function(x){return x.id===e.id});if(i>=0)S.extra[i]=e;else S.extra.push(e);touch('extra');toast(i>=0?'Updated':'Added '+money(e.amount))},
     del:function(d){delItem('extra',d.id,'Deleted')}
   },
   task:{
@@ -1441,7 +1583,7 @@ var SHEETS={
     del:function(d){delItem('tasks',d.id,'Task deleted')}
   }
 };
-function exportObj(){return clone({v:1,settings:docBody('settings'),tasks:docBody('tasks'),shifts:docBody('shifts'),extra:docBody('extra')})}
+function exportObj(){var o={v:1};Object.keys(DOCS).forEach(function(k){o[k]=docBody(k)});return clone(o)}
 function parseImport(text){
   var o;text=String(text||'').trim();if(!text)return {err:'empty'};
   try{o=JSON.parse(text)}catch(e){return {err:'That isn’t valid JSON. Paste the whole thing, from the first { to the last }.'}}
@@ -1458,7 +1600,7 @@ function parseImport(text){
     if(st.rules)sum.push('pay rules');
     if(st.plan)sum.push('your plan');
   }
-  [['tasks','checklist task'],['shifts','shift'],['extra','extra money entry']].forEach(function(x){
+  [['tasks','checklist task'],['shifts','shift'],['extra','extra money entry'],['expenses','expense'],['balances','balance update']].forEach(function(x){
     var v=o[x[0]];if(v===undefined)return;
     var items=Array.isArray(v)?v:(v&&Array.isArray(v.items)?v.items:null);
     if(!items){err='“'+x[0]+'” should be a list.';return}
@@ -1478,7 +1620,7 @@ SHEETS.import={
         (canPaste?'<button type="button" class="row action tap" data-act="imp-paste">Paste from Clipboard</button>':''),
       '<span id="sheet-status">'+SHEETS.import.status(d)+'</span>',{tight:true})+
       sec('','',
-        'Numbers in the JSON replace the ones here; anything it leaves out stays as it is. A checklist, shifts or extra money list in it replaces that whole list. Everything stays in this browser on this device.');
+        'Numbers in the JSON replace the ones here; anything it leaves out stays as it is. A list in it (checklist, shifts, extra money, expenses, balance updates) replaces that whole list. Everything stays in this browser on this device.');
   },
   save:function(d){
     var r=parseImport(d.text);if(r.err)return;
@@ -1496,6 +1638,76 @@ SHEETS.export={
       'This has your balances, debt and checklist in it. Keep it somewhere private, then paste it into Import Data on another device.',{tight:true});
   }
 };
+SHEETS.expense={
+  title:function(d){return d.id?'Edit Expense':'New Expense'},
+  valid:function(d){return num(d.amount)>0&&!!CATMAP[d.cat]&&isDate(d.date)},
+  body:function(d){
+    function grid(planned){return '<div class="cats" role="radiogroup">'+CATS.filter(function(c){return !!c.planned===planned}).map(function(c){
+      return '<button type="button" class="cat" role="radio" aria-checked="'+(d.cat===c.k)+'" data-act="pick" data-bind="draft.cat" data-val="'+c.k+'"><span class="cat-ic" style="--c:var('+c.c+')">'+svg(c.i)+'</span><span class="cat-l">'+c.l+'</span></button>'}).join('')+'</div>'}
+    return '<div class="amt"><span>$</span><input id="f-draft-amount" class="amt-in" data-bind="draft.amount" data-kind="num" inputmode="decimal" enterkeyhint="done" autocomplete="off" placeholder="0.00" value="'+esc(d.amount)+'" aria-label="Amount"></div>'+
+      sec('',grid(false),'',{tight:true})+
+      sec('Planned payments',grid(true),'These shrink your goal instead of using your spending allowance.')+
+      sec('',pillRow('draft.date','date','Date')+'<div class="row"><input class="textin" id="f-draft-notes" data-bind="draft.notes" data-kind="text" placeholder="Note (what was it?)" value="'+esc(d.notes)+'" aria-label="Note"></div>')+
+      (d.id?sec('','<button type="button" class="row action red tap" data-act="sheet-delete">Delete Expense</button>'):'');
+  },
+  save:function(d){
+    var e={id:d.id||uid(),date:d.date,cat:d.cat,amount:Math.round(num(d.amount)*100)/100,notes:String(d.notes||'').trim(),at:d.at||Date.now()},i=S.expenses.findIndex(function(x){return x.id===e.id});
+    if(i>=0)S.expenses[i]=e;else S.expenses.push(e);touch('expenses');
+    toast((i>=0?'Updated ':'Logged ')+'−'+money(e.amount)+' · '+catOf(e.cat).s);
+  },
+  del:function(d){delItem('expenses',d.id,'Expense deleted')}
+};
+SHEETS.balance={
+  title:function(d){return d.id?'Edit Balances':'Update Balances'},
+  valid:function(d){return isDate(d.date)&&d2n(d.date)<=todayN()},
+  total:function(d){return num(d.robinhood)+num(d.stepCash)+num(d.stepSavings)},
+  status:function(d){
+    var tot=SHEETS.balance.total(d),M=moneyState(),diff=tot-M.est;
+    return 'Total <b>'+money(tot)+'</b>'+(d.id?'':' · the estimate was '+money(M.est)+(Math.abs(diff)>=0.01?' ('+signed(diff,2)+')':''));
+  },
+  body:function(d){
+    return sec('',pillRow('draft.date','date','As of')+numRow('draft.robinhood','Robinhood','','$')+numRow('draft.stepCash','Step cash','','$')+numRow('draft.stepSavings','Step savings','','$'),
+        '<span id="sheet-status">'+SHEETS.balance.status(d)+'</span>',{tight:true})+
+      sec('','','This resets the Money tab’s estimate to what your accounts really say. Your plan still starts from the balances on Inputs, so nothing gets counted twice.')+
+      (d.id?sec('','<button type="button" class="row action red tap" data-act="sheet-delete">Delete This Update</button>'):'');
+  },
+  save:function(d){
+    var b={id:d.id||uid(),date:d.date,robinhood:num(d.robinhood),stepCash:num(d.stepCash),stepSavings:num(d.stepSavings),notes:'',at:d.at||Date.now()};
+    b.total=Math.round((b.robinhood+b.stepCash+b.stepSavings)*100)/100;
+    var i=S.balances.findIndex(function(x){return x.id===b.id});if(i>=0)S.balances[i]=b;else S.balances.push(b);touch('balances');
+    toast('Balances saved: '+money(b.total));
+  },
+  del:function(d){delItem('balances',d.id,'Balance update deleted')}
+};
+var goalPrev=null,celebrate=false;
+function goalSnap(){
+  var M=moneyState(),Tk=M.Tk,C=Tk.jobs.Caf,Mn=Tk.jobs[Tk.main];
+  return {caf:C.planned>0&&C.prog>=1,main:Mn.planned>0&&Mn.prog>=1,mainName:Tk.main,money:M.prog>=1,track:M.over>=0,tasks:S.tasks.length>0&&S.tasks.every(function(x){return x.status==='Done'})};
+}
+function checkGoals(){
+  var g;try{g=goalSnap()}catch(e){return}
+  if(goalPrev&&celebrate){
+    var hit=g.money&&!goalPrev.money?'You have enough to go!':g.main&&!goalPrev.main?g.mainName+' hours goal reached!':g.caf&&!goalPrev.caf?'Caf hours goal reached!':g.tasks&&!goalPrev.tasks?'Checklist done!':g.track&&!goalPrev.track?'You’re on track!':'';
+    if(hit){confetti();setTimeout(function(){toast(hit)},250)}
+  }
+  goalPrev=g;celebrate=false;
+}
+function confetti(){
+  try{if(window.matchMedia('(prefers-reduced-motion: reduce)').matches)return}catch(e){}
+  var r=app.getBoundingClientRect(),W=r.width,H=r.height,cv=document.createElement('canvas'),dpr=Math.min(2,window.devicePixelRatio||1);
+  cv.className='confetti';cv.width=W*dpr;cv.height=H*dpr;app.appendChild(cv);
+  var x=cv.getContext('2d');if(!x){cv.remove();return}x.scale(dpr,dpr);
+  var cols=['#FF3B30','#FF9500','#FFCC00','#34C759','#30B0C7','#007AFF','#AF52DE','#FF2D55'],P=[];
+  for(var i=0;i<170;i++){var left=i%2===0;P.push({x:left?-10:W+10,y:H*0.62+Math.random()*H*0.1,vx:(left?1:-1)*(4+Math.random()*9),vy:-(9+Math.random()*12),g:0.32+Math.random()*0.12,w:5+Math.random()*6,h:8+Math.random()*9,a:Math.random()*6.28,va:(Math.random()-0.5)*0.35,c:cols[i%cols.length]})}
+  var t0=performance.now();
+  (function f(now){
+    var el=now-t0,fade=Math.max(0,1-Math.max(0,el-2300)/900);
+    x.clearRect(0,0,W,H);
+    P.forEach(function(p){p.vx*=0.988;p.vy=p.vy*0.988+p.g;p.x+=p.vx;p.y+=p.vy;p.a+=p.va;
+      x.save();x.globalAlpha=fade;x.translate(p.x,p.y);x.rotate(p.a);x.fillStyle=p.c;x.fillRect(-p.w/2,-p.h/2,p.w,p.h*Math.max(0.15,Math.abs(Math.cos(p.a*1.6))));x.restore()});
+    if(el<3200)requestAnimationFrame(f);else cv.remove();
+  })(t0);
+}
 function draftShift(d){return {id:d.id||'new-'+(d._tmp||(d._tmp=uid())),job:d.job,date:d.date,clockIn:d.clockIn,mealOut:d.meal?d.mealOut:'',mealIn:d.meal?d.mealIn:'',clockOut:d.clockOut,notes:d.notes||''}}
 function openSheet(kind,draft){
   sheet={kind:kind,draft:draft,lastStep:draft.step};
@@ -1603,6 +1815,14 @@ var A={
   },
   step:function(t){var p=t.dataset.bind,v=num(getAny(p))+num(t.dataset.d);setAny(p,Math.max(num(t.dataset.min),+v.toFixed(4)))},
   wizard:function(){openWizard()},
+  'add-expense':function(t){openSheet('expense',{id:null,date:n2d(todayN()),cat:t&&t.dataset&&CATMAP[t.dataset.cat]?t.dataset.cat:'',amount:'',notes:''});var a=$('#f-draft-amount');if(a)try{a.focus()}catch(e){}},
+  'edit-expense':function(t){var e=S.expenses.filter(function(x){return x.id===t.dataset.id})[0];if(e)openSheet('expense',clone(e))},
+  'del-expense':function(t){delItem('expenses',t.dataset.id,'Expense deleted');render()},
+  'add-balance':function(){
+    var last=S.balances.slice().sort(function(a,b){return (d2n(b.date)-d2n(a.date))||(num(b.at)-num(a.at))})[0]||S.inputs;
+    openSheet('balance',{id:null,date:n2d(todayN()),robinhood:num(last.robinhood),stepCash:num(last.stepCash),stepSavings:num(last.stepSavings)});
+  },
+  'edit-balance':function(t){var b=S.balances.filter(function(x){return x.id===t.dataset.id})[0];if(b)openSheet('balance',clone(b))},
   import:function(){openSheet('import',{text:''})},
   export:function(){openSheet('export',{text:JSON.stringify(exportObj(),null,2)})},
   'imp-paste':function(){
