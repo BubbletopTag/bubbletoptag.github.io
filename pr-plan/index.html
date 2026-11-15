@@ -574,7 +574,7 @@ var DEF={
     {job:'Walmart',first:'2026-11-30',last:'2027-01-30',depart:'2027-01-31',caf:80,flyHome:false,payDebt:true},
     {job:'Ariel',first:'2026-11-30',last:'2027-01-30',depart:'2027-01-31',caf:80,flyHome:false,payDebt:true}],
   rules:{track:0,cafFrom:'2026-11-21',
-    caf:{rate:11,base:'2025-09-10',len:14,payday:null,brk:0.5,brkMin:6,round:0,otAfter:40,otMult:1.5,bonus:0,bonusAt:0,ss:0.0765,city:0.02,ohio:0.009,fed:0,flagMeal:false},
+    caf:{rate:11,base:'2025-09-10',len:14,payday:null,brk:0.5,brkMin:5,round:0,otAfter:40,otMult:1.5,bonus:0,bonusAt:0,ss:0.0765,city:0.02,ohio:0.009,fed:0,flagMeal:false},
     wm:{base:'2026-11-21',len:14,payday:6,brk:0,brkMin:6,round:0,otAfter:40,otMult:1.5,bonus:0,bonusAt:0,ss:0.0765,city:0.02,ohio:0.009,fed:0.045,flagMeal:true},
     ar:{base:'2026-11-30',len:7,payday:null,brk:0,brkMin:6,round:0,otAfter:40,otMult:1.5,bonus:4,bonusAt:36,ss:0.0765,city:0.02,ohio:0.009,fed:0.0645,flagMeal:false}},
   plan:null,
@@ -641,6 +641,7 @@ function applyDoc(k,data){
     var r=data.rules||{};
     S.rules={track:[0,1,2,3].indexOf(+r.track)>=0?+r.track:0,cafFrom:isDate(r.cafFrom)?r.cafFrom:DEF.rules.cafFrom,
       caf:mergeNums(DEF.rules.caf,r.caf),wm:mergeNums(DEF.rules.wm,r.wm),ar:mergeNums(DEF.rules.ar,r.ar)};
+    if(!(num(data.v)>=2)&&S.rules.caf.brkMin===6)S.rules.caf.brkMin=5;
     var pl=data.plan;
     S.plan=pl&&typeof pl==='object'&&(pl.job==='Walmart'||pl.job==='Ariel')&&isDate(pl.depart)?sanScenario(pl,DEF.scenarios[0]):null;
     if(S.plan&&isDate(pl.setAt))S.plan.setAt=pl.setAt;
@@ -656,7 +657,7 @@ function applyDoc(k,data){
   }
 }
 function docBody(k){
-  if(k==='settings')return {v:1,inputs:S.inputs,scenarios:S.scenarios,rules:S.rules,plan:S.plan};
+  if(k==='settings')return {v:2,inputs:S.inputs,scenarios:S.scenarios,rules:S.rules,plan:S.plan};
   return {v:1,items:S[k]};
 }
 function docOf(p){var h=p.split('.')[0];return h==='shifts'||h==='extra'||h==='tasks'?h:'settings'}
@@ -1081,8 +1082,8 @@ payrules:function(){
       :'Estimated: biweekly Sat–Fri, paid the next Thursday. A 2026 payday calendar lists Dec 10, which makes Sat Nov 21 a period start. Fix it from your first stub.')+
     numRow(P+'.len','Pay period length',isA?'7 = weekly, 14 = every two weeks.':'Both are biweekly. Workweeks start on the same weekday as the pay period.','days')+
     numRow(P+'.payday','Payday','Days after the period ends. '+(isC?'Optional: add it from a stub if you want paydays listed.':isA?'Add it from your first stub.':'Friday end → Thursday payday.'),'days',{nullable:true,ph:'None'})+
-    numRow(P+'.brk',isC?'Time deducted on long shifts':'Unpaid break taken off',isC?'If you work 6+ hours straight with no clock-out, assume a manager takes 30 min off by hand, whether or not you actually got a break.':isA?'Not known yet. The posting says work 36, paid for 40, so nothing comes off here.':'0 here: you clock out for meals, so log Meal out / Meal in instead (30 min on 6+ hr shifts, up to 1 hr on longer ones). Paid 15-min breaks aren’t logged.','hrs')+
-    numRow(P+'.brkMin','…on shifts of at least',job==='Walmart'?'Only used to flag a 6+ hour shift with no meal punch.':'','hrs')+
+    numRow(P+'.brk',isC?'Time deducted on long shifts':'Unpaid break taken off',isC?'If you work '+hrs(r.brkMin)+'+ hours straight with no clock-out, assume a manager takes 30 min off by hand, whether or not you actually got a break.':isA?'Not known yet. The posting says work 36, paid for 40, so nothing comes off here.':'0 here: you clock out for meals, so log Meal out / Meal in instead (30 min on 6+ hr shifts, up to 1 hr on longer ones). Paid 15-min breaks aren’t logged.','hrs')+
+    numRow(P+'.brkMin','…on shifts of at least',job==='Walmart'?'Only used to flag a 6+ hour shift with no meal punch.':isC?'Not sure if the caf’s cutoff is 5 or 6 hours, so this assumes 5 to be safe. Check a stub from a 5–6 hour shift.':'','hrs')+
     (isA?numRow(P+'.bonusAt','Bonus kicks in after','Fri–Sun 5am–5pm: work 36, get paid for 40 (Ariel posting)','hrs/wk')+
       numRow(P+'.bonus','Bonus paid hours','Added on the shift where your week reaches the line above. They don’t count toward overtime.','hrs'):'')+
     numRow(P+'.round','Punch rounding','0 = exact. If a stub shows rounding (e.g., to the nearest 15 min), enter it here.','min')+
@@ -1398,7 +1399,7 @@ var SHEETS={
       }else if(d.clockIn===d.clockOut&&isTime(d.clockIn)){
         preview=sec('','<div class="row"><div class="row-main"><div class="row-warn" style="margin:0">'+svg('warn')+'Clock out matches clock in</div></div></div>');
       }
-      var note=d.job==='Caf'?'Worked 6+ hours straight with no clock-out? Assume the caf takes 30 min off by hand, break or not. Better to count on it than hope they miss it.'
+      var note=d.job==='Caf'?'Worked '+hrs(rule('Caf').brkMin)+'+ hours straight with no clock-out? Assume the caf takes 30 min off by hand, break or not. Better to count on it than hope they miss it.'
         :d.job==='Ariel'?'Ariel: 12-hour shifts. Work 36 in a week and you’re paid for 40; the bonus lands on the shift that gets you to 36.'
         :'Walmart: log Meal out / Meal in (30 min on 6+ hr shifts, up to 1 hr on longer ones). Paid 15-min breaks aren’t logged.';
       return '<div class="seg-row">'+seg('draft.job',[['Caf','Caf'],['Walmart','Walmart'],['Ariel','Ariel']],d.job,'wide')+'</div>'+
