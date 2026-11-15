@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
 <title>PR Plan</title>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -74,7 +74,16 @@ button{font:inherit;color:inherit;letter-spacing:inherit;cursor:pointer}
 .ic{width:1em;height:1em;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:none}
 
 /* ---------- device shell ---------- */
-#device{position:relative;width:100%;height:100%}
+html,body{overscroll-behavior:none}
+body{position:fixed;inset:0;width:100%}
+#device{position:relative;width:100%;height:var(--vvh,100%);transform:translateY(var(--vvtop,0px))}
+/* Solid strip at the top edge: iOS Safari only skips its own top-edge blur when it finds a painted, viewport-fixed element there (same fix as Flashi) */
+#status-bar-fill{position:fixed;inset:0 0 auto;height:max(6px,var(--sat));background:var(--bg);z-index:100;pointer-events:none;transform:translateY(var(--vvtop,0px));transition:background-color .5s var(--ease)}
+html.sheet-up #status-bar-fill{background:#000}
+.kb-open .tabbar,.kb-open .tabfade{opacity:0;pointer-events:none;transform:translateY(40px)}
+.tabbar,.tabfade{transition:opacity .2s,transform .3s var(--ease),height .45s var(--ease),left .45s var(--ease),right .45s var(--ease)}
+.kb-open .content{padding-bottom:24px}
+.kb-open .sheet-scroll{padding-bottom:16px}
 #app{position:relative;width:100%;height:100%;overflow:hidden;background:#000;isolation:isolate}
 #main{position:absolute;inset:0;background:var(--bg);overflow:hidden;transform-origin:50% 0;transition:transform .5s var(--ease),border-radius .5s var(--ease)}
 #main::after{content:"";position:absolute;inset:0;background:#000;opacity:0;pointer-events:none;transition:opacity .5s var(--ease);z-index:30}
@@ -83,7 +92,9 @@ button{font:inherit;color:inherit;letter-spacing:inherit;cursor:pointer}
 .statusbar,.home-ind{display:none}
 @media (min-width:600px) and (min-height:640px){
   body{display:grid;place-items:center;background:var(--desk);overflow:auto}
-  #device{width:402px;height:min(874px,calc(100% - 40px));border-radius:64px;padding:12px;background:#0c0c0d;box-shadow:inset 0 0 0 2px #2c2c2e,0 40px 90px -20px rgba(0,0,0,.45);--sat:54px;--sab:30px;--tabb:20px}
+  body{position:static}
+  #status-bar-fill{display:none}
+  #device{transform:none;width:402px;height:min(874px,calc(100% - 40px));border-radius:64px;padding:12px;background:#0c0c0d;box-shadow:inset 0 0 0 2px #2c2c2e,0 40px 90px -20px rgba(0,0,0,.45);--sat:54px;--sab:30px;--tabb:20px}
   #app{border-radius:52px}
   .statusbar{display:flex;position:absolute;top:0;left:0;right:0;height:54px;padding:0 30px 0 44px;align-items:center;justify-content:space-between;z-index:60;pointer-events:none;color:var(--label);font:600 17px var(--font)}
   .island{position:absolute;left:50%;top:11px;width:124px;height:36px;margin-left:-62px;border-radius:20px;background:#000}
@@ -106,7 +117,7 @@ button{font:inherit;color:inherit;letter-spacing:inherit;cursor:pointer}
 .page.inline .content{padding-top:calc(var(--sat) + var(--navh) + 6px)}
 
 .nav{position:absolute;top:0;left:0;right:0;z-index:5;padding-top:var(--sat);height:calc(var(--sat) + var(--navh));pointer-events:none}
-.nav::before{content:"";position:absolute;inset:0 0 -22px 0;background:linear-gradient(var(--bg) 35%,color-mix(in srgb,var(--bg) 0%,transparent));-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);-webkit-mask-image:linear-gradient(#000 50%,transparent);mask-image:linear-gradient(#000 50%,transparent);opacity:0;transition:opacity .2s}
+.nav::before{content:"";position:absolute;inset:0 0 -18px 0;background:linear-gradient(var(--bg) 0%,var(--bg) 64%,color-mix(in srgb,var(--bg) 0%,transparent) 100%);opacity:0;transition:opacity .2s}
 .page.scrolled .nav::before{opacity:1}
 .nav-inner{position:relative;height:var(--navh);display:flex;align-items:center;justify-content:space-between;padding:0 16px;gap:8px}
 .nav-l,.nav-r{display:flex;gap:8px;pointer-events:auto;z-index:1}
@@ -485,6 +496,7 @@ button,.row.tap,.choice{touch-action:manipulation}
 </style>
 </head>
 <body>
+<div id="status-bar-fill" aria-hidden="true"></div>
 <div id="device">
   <div id="app">
     <div class="statusbar" aria-hidden="true">
@@ -1715,7 +1727,7 @@ function openSheet(kind,draft){
   layer.innerHTML='<div class="sheet-scrim" data-act="sheet-cancel"></div><div class="sheet'+(kind==='wizard'?' wiz':'')+'" role="dialog" aria-modal="true" aria-labelledby="sheet-title"><div class="sheet-nav"><span class="grabber"></span><div class="sn-l"></div><div class="sheet-title" id="sheet-title"></div><div class="sn-r"></div></div><div class="sheet-scroll"></div>'+(kind==='wizard'?'<div class="wiz-foot"></div>':'')+'</div>';
   renderSheet();
   void layer.offsetWidth;
-  requestAnimationFrame(function(){app.classList.add('sheet-open')});
+  requestAnimationFrame(function(){app.classList.add('sheet-open');document.documentElement.classList.add('sheet-up')});
 }
 function openWizard(){
   var P=S.plan,d;
@@ -1735,7 +1747,7 @@ function renderSheet(){
 }
 function updateSheetChrome(){if(!sheet)return;var K=SHEETS[sheet.kind],b=$('#sheet-save');if(b)b.disabled=!K.valid(sheet.draft);var st=$('#sheet-status');if(st&&K.status)st.innerHTML=K.status(sheet.draft)}
 function closeSheet(){
-  app.classList.remove('sheet-open');
+  app.classList.remove('sheet-open');document.documentElement.classList.remove('sheet-up');
   var s=$('.sheet');if(s){s.style.transform='';s.classList.remove('dragging')}
   setTimeout(function(){if(!app.classList.contains('sheet-open')){$('#sheet-layer').innerHTML='';sheet=null}},480);
 }
@@ -1950,6 +1962,32 @@ app.addEventListener('pointercancel',function(){
 
 /* ================= boot ================= */
 function clock(){var d=new Date(),el=$('#sb-time');if(el)el.textContent=(d.getHours()%12||12)+':'+String(d.getMinutes()).padStart(2,'0')}
+/* Keyboard: keep the app pinned to the visible area instead of letting iOS slide the whole page up */
+var vvBase=window.innerHeight,kbTimer=0;
+function fieldFocused(){var a=document.activeElement;return !!(a&&(a.tagName==='TEXTAREA'||(a.tagName==='INPUT'&&['date','time','checkbox'].indexOf(a.type)<0)))}
+function revealField(){
+  var a=document.activeElement;if(!fieldFocused())return;
+  var sc=a.closest('.sheet-scroll,.scroll');if(!sc)return;
+  var r=a.getBoundingClientRect(),s=sc.getBoundingClientRect(),top=s.top+(sc.classList.contains('scroll')?parseFloat(getComputedStyle(sc.firstElementChild).paddingTop)||0:0)+8,bottom=s.bottom-16;
+  if(r.bottom>bottom)sc.scrollTop+=r.bottom-bottom;else if(r.top<top)sc.scrollTop-=top-r.top;
+}
+function vvFit(){
+  var vv=window.visualViewport,root=document.documentElement;
+  if(!vv||window.matchMedia('(min-width:600px) and (min-height:640px)').matches){root.style.removeProperty('--vvh');root.style.removeProperty('--vvtop');root.classList.remove('kb-open');return}
+  if(window.scrollY||window.scrollX)window.scrollTo(0,0);
+  if(!fieldFocused())vvBase=Math.max(window.innerHeight,vv.height);
+  var kb=fieldFocused()&&vvBase-vv.height>120;
+  root.style.setProperty('--vvh',vv.height+'px');
+  root.style.setProperty('--vvtop',vv.offsetTop+'px');
+  root.classList.toggle('kb-open',kb);
+  if(kb){clearTimeout(kbTimer);kbTimer=setTimeout(revealField,60)}
+}
+if(window.visualViewport){window.visualViewport.addEventListener('resize',vvFit);window.visualViewport.addEventListener('scroll',vvFit)}
+window.addEventListener('scroll',function(){if(window.scrollY||window.scrollX)window.scrollTo(0,0)},{passive:true});
+document.addEventListener('focusin',function(){setTimeout(vvFit,0);setTimeout(vvFit,350)});
+document.addEventListener('focusout',function(){setTimeout(vvFit,0);setTimeout(vvFit,350)});
+window.addEventListener('orientationchange',function(){setTimeout(function(){vvBase=window.innerHeight;vvFit()},300)});
+vvFit();
 loadLocal();
 TABS.forEach(function(t){var entry={v:t};stacks[t]=[entry];$('.tabview[data-tab="'+t+'"]').appendChild(makePage(entry))});
 buildTabbar();
