@@ -285,6 +285,7 @@ html.sheet-up #status-bar-fill{background:#000}
 
 /* hours */
 .rings{display:grid;grid-template-columns:1fr 1fr;padding:18px 8px 16px}
+.rings.one{grid-template-columns:1fr}
 .group.rings>*::after{display:none}
 .ring-cell{display:flex;flex-direction:column;align-items:center;text-align:center;gap:2px}
 .ring-cell+.ring-cell{border-left:.5px solid var(--sep)}
@@ -662,13 +663,14 @@ var DEF={
     {job:'Walmart',first:'2026-11-30',last:'2027-02-09',depart:'2027-02-11',caf:80,flyHome:false,payDebt:true},
     {job:'Ariel',first:'2026-11-30',last:'2027-02-07',depart:'2027-02-11',caf:80,flyHome:false,payDebt:true},
     {job:'Walmart',first:'2026-11-30',last:'2027-01-30',depart:'2027-01-31',caf:80,flyHome:false,payDebt:true},
-    {job:'Ariel',first:'2026-11-30',last:'2027-01-30',depart:'2027-01-31',caf:80,flyHome:false,payDebt:true}],
+    {job:'Ariel',first:'2026-11-30',last:'2027-01-30',depart:'2027-01-31',caf:80,flyHome:false,payDebt:true},
+    {job:'None',first:'2026-11-30',last:'2027-02-09',depart:'2027-02-11',caf:270,flyHome:false,payDebt:true}],
   rules:{track:0,cafFrom:'2026-11-21',
     caf:{rate:11,base:'2025-09-10',len:14,payday:null,brk:0.5,brkMin:5,round:0,otAfter:40,otMult:1.5,bonus:0,bonusAt:0,ss:0.0765,city:0.02,ohio:0.009,fed:0,flagMeal:false},
     wm:{base:'2026-11-21',len:14,payday:6,brk:0,brkMin:6,round:0,otAfter:40,otMult:1.5,bonus:0,bonusAt:0,ss:0.0765,city:0.02,ohio:0.009,fed:0.045,flagMeal:true},
     ar:{base:'2026-11-30',len:7,payday:null,brk:0,brkMin:6,round:0,otAfter:40,otMult:1.5,bonus:4,bonusAt:36,ss:0.0765,city:0.02,ohio:0.009,fed:0.0645,flagMeal:false}},
   plan:null,
-  goals:{start:'2026-11-16',weekHrs:7,minMins:15,babbelDaily:1,unitsLeft:null,a2Hrs:80,remindAt:'20:00'},
+  goals:{start:'2026-11-16',weekHrs:7,minMins:15,babbelDaily:1,unitsLeft:null,a2Hrs:80,remindAt:'20:00',sound:1},
   shifts:[],
   extra:[],
   tasks:[
@@ -732,10 +734,11 @@ var STATUSES=['To do','In progress','Done'];
 /* ================= state ================= */
 var S=clone({inputs:DEF.inputs,scenarios:DEF.scenarios,rules:DEF.rules,plan:null,goals:DEF.goals,shifts:DEF.shifts,extra:DEF.extra,tasks:DEF.tasks,expenses:[],balances:[],study:[]});
 var UI={prJob:'Caf',perJob:'Caf',tlFilter:'All'};
+var JOBS=['Walmart','Ariel','None'];
 
 function sanScenario(s,d){
   s=s||{};
-  return {job:s.job==='Ariel'?'Ariel':(s.job==='Walmart'?'Walmart':d.job),
+  return {job:JOBS.indexOf(s.job)>=0?s.job:d.job,
     first:isDate(s.first)?s.first:d.first,last:isDate(s.last)?s.last:d.last,depart:isDate(s.depart)?s.depart:d.depart,
     caf:isFinite(+s.caf)&&s.caf!==null&&s.caf!==''?+s.caf:d.caf,flyHome:typeof s.flyHome==='boolean'?s.flyHome:d.flyHome,payDebt:typeof s.payDebt==='boolean'?s.payDebt:d.payDebt};
 }
@@ -754,12 +757,12 @@ function applyDoc(k,data){
     var sc=Array.isArray(data.scenarios)?data.scenarios:[];
     S.scenarios=DEF.scenarios.map(function(d,i){return sanScenario(sc[i],d)});
     var r=data.rules||{};
-    S.rules={track:[0,1,2,3].indexOf(+r.track)>=0?+r.track:0,cafFrom:isDate(r.cafFrom)?r.cafFrom:DEF.rules.cafFrom,
+    S.rules={track:[0,1,2,3,4].indexOf(+r.track)>=0?+r.track:0,cafFrom:isDate(r.cafFrom)?r.cafFrom:DEF.rules.cafFrom,
       caf:mergeNums(DEF.rules.caf,r.caf),wm:mergeNums(DEF.rules.wm,r.wm),ar:mergeNums(DEF.rules.ar,r.ar)};
     if(!(num(data.v)>=2)&&S.rules.caf.brkMin===6)S.rules.caf.brkMin=5;
     S.goals=mergeNums(DEF.goals,data.goals);
     var pl=data.plan;
-    S.plan=pl&&typeof pl==='object'&&(pl.job==='Walmart'||pl.job==='Ariel')&&isDate(pl.depart)?sanScenario(pl,DEF.scenarios[0]):null;
+    S.plan=pl&&typeof pl==='object'&&JOBS.indexOf(pl.job)>=0&&isDate(pl.depart)?sanScenario(pl,DEF.scenarios[0]):null;
     if(S.plan&&isDate(pl.setAt))S.plan.setAt=pl.setAt;
   }else if(k==='shifts'){
     S.shifts=(Array.isArray(data.items)?data.items:[]).filter(function(s){return s&&isDate(s.date)&&isTime(s.clockIn)&&isTime(s.clockOut)}).map(function(s){
@@ -810,15 +813,28 @@ function trip(){
   var col=monthly.reduce(function(a,b){return a+b.per},0);
   return {m:m,monthly:monthly,once:once,total:total,col:col,prTH:num(i.prTH),perMonthLeft:num(i.prTH)-col};
 }
+function jobName(j){return j==='None'?'Caf only':j}
+function comboName(j){return j==='None'?'Caf only':j+' + Caf'}
+var CAF_CLOSED=[['2026-11-25','2026-11-29'],['2026-12-11','2027-01-13']];
+function cafOpen(n){return !CAF_CLOSED.some(function(r){return n>=d2n(r[0])&&n<=d2n(r[1])})}
+/* Most caf you could realistically work before you fly: 8 paid hrs on each open day, capped at 40 per caf workweek (no caf overtime) */
+function cafMax(depart){
+  var b=d2n(S.rules.caf.base),to=d2n(depart)-1,wk={},tot=0;
+  for(var n=d2n(S.rules.cafFrom);n<=to;n++){if(!cafOpen(n))continue;var w=Math.floor((n-b)/7);wk[w]=(wk[w]||0)+8}
+  Object.keys(wk).forEach(function(w){tot+=Math.min(40,wk[w])});
+  return tot;
+}
 function calcScenario(s,idx){
-  var i=S.inputs,first=d2n(s.first),last=d2n(s.last),dep=d2n(s.depart);
-  var weeks=(last-first+1)/7;
-  var hours=s.job==='Walmart'?weeks*num(i.wmHrs)-num(i.wmHoliday):weeks*num(i.arHrs)-num(i.arMissed)*num(i.arLost);
-  var mainTH=s.job==='Walmart'?hours*num(i.wmTH):hours*num(i.arRate)*num(i.arPct)+weeks*num(i.arOT)*num(i.arOTRate)*num(i.arPct);
+  var i=S.inputs,first=d2n(s.first),last=d2n(s.last),dep=d2n(s.depart),none=s.job==='None';
+  var weeks=none?0:(last-first+1)/7;
+  var hours=none?0:s.job==='Walmart'?weeks*num(i.wmHrs)-num(i.wmHoliday):weeks*num(i.arHrs)-num(i.arMissed)*num(i.arLost);
+  var mainTH=none?0:s.job==='Walmart'?hours*num(i.wmTH):hours*num(i.arRate)*num(i.arPct)+weeks*num(i.arOT)*num(i.arOTRate)*num(i.arPct);
   var cafTH=num(s.caf)*num(i.cafTH);
   var sv=savings(),before=sv+mainTH+cafTH,buffer=-before*num(i.buffer),atDep=before+buffer;
   var tr=trip().total,xf=s.flyHome?num(i.extraFlight):0,debt=s.payDebt?num(i.debt):0,out=tr+xf+debt,left=atDep-out;
-  return {i:idx,job:s.job,dep:dep,caf:num(s.caf),label:s.job+' · '+fmtD(dep,'md'),weeks:weeks,hours:hours,mainTH:mainTH,cafTH:cafTH,
+  var perCaf=num(i.cafTH)*(1-num(i.buffer));
+  return {i:idx,job:s.job,none:none,dep:dep,caf:num(s.caf),label:jobName(s.job)+' · '+fmtD(dep,'md'),weeks:weeks,
+    cafNeed:left<0&&perCaf>0?num(s.caf)+(-left)/perCaf:null,hours:hours,mainTH:mainTH,cafTH:cafTH,
     savings:sv,before:before,buffer:buffer,atDep:atDep,trip:tr,extraFlight:xf,debtPay:debt,out:out,left:left,
     status:left>=0?(s.payDebt?'Debt-free + cushion':'Trip funded'):'Short '+money(-left,0),
     debtLeft:num(i.debt)-debt,backHome:dep+num(i.weeks)*7};
@@ -865,10 +881,10 @@ function computeShifts(list){
 }
 function activePlan(){if(S.plan)return {s:S.plan,idx:-1,chosen:true};var i=S.rules.track||0;return {s:S.scenarios[i]||S.scenarios[0],idx:i,chosen:false}}
 function tracker(){
-  var ap=activePlan(),sc=ap.s,c=calcScenario(sc,ap.idx),t=todayN(),main=sc.job;
+  var ap=activePlan(),sc=ap.s,c=calcScenario(sc,ap.idx),t=todayN(),main=sc.job==='None'?null:sc.job;
   var calcs=computeShifts(S.shifts.filter(function(s){return !s.planned})),pcalcs=S.shifts.some(function(s){return s.planned})?computeShifts(S.shifts).filter(function(x){return x.sh.planned}):[];
   var jobs={Caf:{from:d2n(S.rules.cafFrom),through:d2n(sc.depart)-1,planned:num(sc.caf),r:rule('Caf'),planRate:planRate('Caf')}};
-  jobs[main]={from:d2n(sc.first),through:d2n(sc.last),planned:c.hours,r:rule(main),planRate:planRate(main)};
+  if(main)jobs[main]={from:d2n(sc.first),through:d2n(sc.last),planned:c.hours,r:rule(main),planRate:planRate(main)};
   Object.keys(jobs).forEach(function(job){
     var o=jobs[job];o.logged=0;o.th=0;o.weekHrs=0;o.plannedHrs=0;
     pcalcs.forEach(function(x){if(x.sh.job===job&&x.d>=o.from&&x.d<=o.through)o.plannedHrs+=x.paidAll});
@@ -882,15 +898,16 @@ function tracker(){
     o.untilOT=Math.max(0,num(o.r.otAfter)-o.weekHrs);
   });
   var extra=S.extra.reduce(function(a,e){return a+num(e.amount)},0);
-  var cafThr=thr(jobs.Caf.r),mainThr=thr(jobs[main].r);
-  var extraCaf=Math.max(0,jobs.Caf.logged-jobs.Caf.planned);
+  var cafThr=thr(jobs.Caf.r),mainThr=main?thr(jobs[main].r):0;
+  var extraCaf=main?Math.max(0,jobs.Caf.logged-jobs.Caf.planned):0;
   var covered=mainThr>0?(extraCaf*cafThr+extra)/mainThr:0;
-  jobs.Caf.left=Math.max(0,jobs.Caf.planned-jobs.Caf.logged);
-  jobs[main].left=Math.max(0,jobs[main].planned-jobs[main].logged-covered);
-  jobs.Caf.prog=jobs.Caf.planned>0?Math.min(1,jobs.Caf.logged/jobs.Caf.planned):0;
-  jobs[main].prog=jobs[main].planned>0?Math.min(1,(jobs[main].logged+covered)/jobs[main].planned):0;
+  var cafCover=!main&&cafThr>0?extra/cafThr:0;
+  jobs.Caf.left=Math.max(0,jobs.Caf.planned-jobs.Caf.logged-cafCover);
+  if(main)jobs[main].left=Math.max(0,jobs[main].planned-jobs[main].logged-covered);
+  jobs.Caf.prog=jobs.Caf.planned>0?Math.min(1,(jobs.Caf.logged+cafCover)/jobs.Caf.planned):0;
+  if(main)jobs[main].prog=jobs[main].planned>0?Math.min(1,(jobs[main].logged+covered)/jobs[main].planned):0;
   Object.keys(jobs).forEach(function(job){var o=jobs[job];o.perWeek=o.left===0?0:o.left/Math.max(1,(o.through-Math.max(t,o.from)+1)/7);o.progP=o.planned>0?Math.max(0,Math.min(1-o.prog,o.plannedHrs/o.planned)):0});
-  return {chosen:ap.chosen,idx:ap.idx,sc:sc,c:c,main:main,jobs:jobs,extra:extra,extraCaf:extraCaf,covered:covered,calcs:calcs,pcalcs:pcalcs,cafThr:cafThr,mainThr:mainThr,today:t};
+  return {chosen:ap.chosen,idx:ap.idx,sc:sc,c:c,main:main,jobs:jobs,extra:extra,extraCaf:extraCaf,covered:covered,cafCover:cafCover,calcs:calcs,pcalcs:pcalcs,cafThr:cafThr,mainThr:mainThr,today:t};
 }
 function periodList(job,T){
   var o=T.jobs[job],r=o.r,b=d2n(r.base),len=num(r.len)||14,start=b+len*Math.floor((o.from-b)/len),rows=[];
@@ -917,11 +934,11 @@ function timelineItems(){
     if(P){
       if(title.indexOf('Early option')===0)return;
       if(title.indexOf('Fly to San Juan')===0){n=dep;why='Your plan: the trial run starts'}
-      if(title.indexOf('Target start')===0){n=d2n(P.first);title='Start at '+P.job;why='First week of work. Caf is open again too. Grab every shift'}
+      if(title.indexOf('Target start')===0){if(P.job==='None')return;n=d2n(P.first);title='Start at '+P.job;why='First week of work. Caf is open again too. Grab every shift'}
     }
     out.push({n:n,title:title,why:why,type:x[3]});
   });
-  if(P)out.push({n:d2n(P.last),title:'Last day at '+P.job,why:'Then pack: you fly '+fmtD(dep,'wmd'),type:'Work'});
+  if(P&&P.job!=='None')out.push({n:d2n(P.last),title:'Last day at '+P.job,why:'Then pack: you fly '+fmtD(dep,'wmd'),type:'Work'});
   return out.sort(function(a,b){return (a.n===null?1e9:a.n)-(b.n===null?1e9:b.n)});
 }
 function payday(c){var r=c.r,len=num(r.len)||14,off=(r.payday===null||r.payday===undefined||r.payday==='')?7:num(r.payday);return c.period+len-1+off}
@@ -1214,7 +1231,7 @@ function openICS(name,text){
   if(/iP(hone|ad|od)/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1)){window.location.href='data:text/calendar;charset=utf-8,'+encodeURIComponent(text);return}
   try{var blob=new Blob([text],{type:'text/calendar'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=name;document.body.appendChild(a);a.click();setTimeout(function(){URL.revokeObjectURL(url);a.remove()},1500)}catch(e){toast("Couldn't make the calendar file")}
 }
-var JOBC={Caf:['fork','--orange'],Walmart:['cart','--tint'],Ariel:['factory','--indigo']};
+var JOBC={Caf:['fork','--orange'],Walmart:['cart','--tint'],Ariel:['factory','--indigo'],None:['fork','--orange']};
 function resultCard(c){
   var pos=c.left>=0;
   var segs=[{l:'Trip',v:c.trip,c:'--tint'},{l:'School debt',v:c.debtPay,c:'--purple'},{l:'Feb 10 flight',v:c.extraFlight,c:'--orange'}];
@@ -1225,20 +1242,21 @@ function cafRow(path,I){
   return '<div class="row"><div class="row-main"><label class="row-title" for="'+fid(path)+'">Planned caf hours</label><div class="row-sub">A goal, not guaranteed. About '+money(num(getAny(path))*num(I.cafTH),0)+' if you hit it</div></div>'+numField(path,'',{sm:true})+stepper(path,4,0,'Caf hours')+'</div>';
 }
 function detailView(s,P,idx,isPlan){
-  var c=calcScenario(s,idx),pos=c.left>=0,I=S.inputs;
+  var c=calcScenario(s,idx),pos=c.left>=0,I=S.inputs,none=c.none,cm=cafMax(s.depart);
   var settings=
-    '<div class="row"><div class="row-main"><div class="row-title">Main job</div></div>'+seg(P+'.job',[['Walmart','Walmart'],['Ariel','Ariel']],s.job)+'</div>'+
-    pillRow(P+'.first','date','First week of work',wday(d2n(s.first))===1?'Monday':'Pick a Monday')+
-    pillRow(P+'.last','date','Last day of work')+
+    '<div class="row"><div class="row-main"><div class="row-title">Main job</div></div>'+seg(P+'.job',[['Walmart','Walmart'],['Ariel','Ariel'],['None','None']],s.job)+'</div>'+
+    (none?'':pillRow(P+'.first','date','First week of work',wday(d2n(s.first))===1?'Monday':'Pick a Monday')+
+    pillRow(P+'.last','date','Last day of work'))+
     pillRow(P+'.depart','date','Departure date')+
     cafRow(P+'.caf',I)+
     toggleRow(P+'.flyHome','Fly home for Feb 10?','Adds a '+money(I.extraFlight,0)+' round trip')+
     toggleRow(P+'.payDebt','Pay off school debt first?',money(I.debt)+' school balance');
-  var inn=vrow('Savings (after Playa)',money(c.savings))+
+  var inn=vrow('Savings (after Playa)',money(c.savings))+(none?'':
     vrow('Weeks of main job',hrs(c.weeks,1)+' wks')+
     vrow('Main job paid hours',hrs(c.hours,1)+' hrs',c.job==='Walmart'?hrs(I.wmHrs)+'/wk minus '+hrs(I.wmHoliday)+' unpaid holiday hrs':hrs(I.arHrs)+'/wk minus '+hrs(I.arMissed)+' missed shifts')+
-    vrow('Main job take-home',money(c.mainTH))+
+    vrow('Main job take-home',money(c.mainTH)))+
     vrow('Planned caf take-home',money(c.cafTH),hrs(c.caf)+' planned hrs × '+money(I.cafTH)+'. Not guaranteed')+
+    (none?vrow('Most caf you could work','About '+hrs(cm)+' hrs','8 hrs on every open day before '+fmtD(c.dep,'md')+', 40 a week max. Closed '+cafClosedTxt(),{vcls:c.caf>cm?'r':''}):'')+
     vrow('Total before buffer',money(c.before))+
     vrow('Impulse buffer ('+pct(I.buffer)+')',money(c.buffer))+
     vrow('Money at departure',money(c.atDep),'',{strong:true});
@@ -1247,7 +1265,8 @@ function detailView(s,P,idx,isPlan){
     vrow('School debt payoff',money(c.debtPay))+
     vrow('Total needed',money(c.out),'',{strong:true});
   var result=vrow('Left over',signed(c.left,2),'',{strong:true,vcls:pos?'g':'r'})+
-    (c.caf>0?(function(){var z=calcScenario(Object.assign({},s,{caf:0}),idx).left;return vrow('If you get no caf hours',signed(z,2),'Planned caf hours are a goal, not a sure thing',{vcls:z>=0?'g':'r'})})():'')+
+    (c.cafNeed!==null?vrow('Caf hours to break even',hrs(Math.ceil(c.cafNeed))+' hrs',c.cafNeed>cm?'More than the caf can give before you fly (about '+hrs(cm)+')':none?'Fits if you get most open days':hrs(Math.ceil(c.cafNeed-c.caf))+' more than planned',{vcls:c.cafNeed>cm?'r':''}):'')+
+    (c.caf>0&&!none?(function(){var z=calcScenario(Object.assign({},s,{caf:0}),idx).left;return vrow('If you get no caf hours',signed(z,2),'Planned caf hours are a goal, not a sure thing',{vcls:z>=0?'g':'r'})})():'')+
     vrow('School debt still on 0% plan',money(c.debtLeft))+
     vrow('Back home by',fmtD(c.backHome,'mdy'),'If no job comes through');
   var foot;
@@ -1274,7 +1293,7 @@ plan:function(){
   var hero='<button class="hero" type="button" data-act="push" data-view="'+(P?'plandetail':'scenario')+'" data-i="'+(P?0:bi)+'">'+
     PR_SVG+'<span class="hero-top"><span class="hero-cap">'+cap+'</span><span class="hero-pill">'+svg(h.left>=0?'check':'warn')+esc(h.status)+'</span></span>'+
     '<span class="hero-num">'+signed(h.left)+'</span>'+
-    '<span class="hero-sub">Left over with '+esc(h.job)+' + Caf, leaving '+fmtD(h.dep,'md')+'</span>'+
+    '<span class="hero-sub">Left over with '+esc(comboName(h.job))+', leaving '+fmtD(h.dep,'md')+'</span>'+
     '<span class="hero-chips"><span>'+svg('plane')+(dd>1?dd+' days until San Juan':dd===1?'Fly tomorrow':dd===0?'Fly today':'Trial underway')+'</span><span>'+svg('house')+'Home by '+fmtD(h.backHome,'md')+'</span></span></button>';
   var cta=savings()===0&&num(S.inputs.debt)===0?'<div class="cta"><span class="cta-ic" style="color:var(--green);background:color-mix(in srgb,var(--green) 14%,transparent)">'+svg('doc')+'</span><div class="cta-main"><div class="cta-t">Add your numbers</div><div class="cta-s">Paste the JSON with your balances and checklist. It stays on this device.</div></div><button type="button" class="cap-btn" data-act="import">Import</button></div>':P?'':'<div class="cta"><span class="cta-ic">'+svg('sparkles')+'</span><div class="cta-main"><div class="cta-t">Pick the plan you’re going with</div><div class="cta-s">Choose a job and a departure date. Hours and the timeline follow it.</div></div><button type="button" class="cap-btn" data-act="wizard">Set Up</button></div>';
   function tile(l,v,s,act,target){return '<button class="tile-card" type="button" data-act="'+act+'" '+(act==='tab'?'data-tab':'data-view')+'="'+target+'"><span class="tc-l">'+l+'</span><span class="tc-v">'+v+'</span><span class="tc-s">'+s+'</span></button>'}
@@ -1291,7 +1310,7 @@ plan:function(){
   var rows=sc.map(function(c,i){
     var jc=JOBC[c.job];
     return '<div class="row tap hi" data-act="push" data-view="scenario" data-i="'+i+'" role="button" tabindex="0">'+tileIcon(jc[0],jc[1])+
-      '<div class="row-main"><div class="row-title">'+esc(c.job)+' + Caf</div><div class="row-sub">Leave '+fmtD(c.dep,'md')+' · '+hrs(c.caf)+' planned caf hrs'+(samePlan(S.scenarios[i],P)?' <span class="mini-pill">Your plan</span>':'')+'</div></div>'+
+      '<div class="row-main"><div class="row-title">'+esc(comboName(c.job))+'</div><div class="row-sub">Leave '+fmtD(c.dep,'md')+' · '+hrs(c.caf)+' planned caf hrs'+(samePlan(S.scenarios[i],P)?' <span class="mini-pill">Your plan</span>':'')+'</div></div>'+
       '<div class="row-val strong '+(c.left>=0?'g':'r')+'">'+signed(c.left)+'</div>'+chev()+'</div>';
   }).join('');
   var ti=todayItems(),todo=ti.filter(function(x){return x.todo}).length;
@@ -1373,12 +1392,15 @@ payrules:function(){
   return {title:'Pay Rules',body:body};
 },
 hours:function(){
-  var Tk=tracker(),C=Tk.jobs.Caf,M=Tk.jobs[Tk.main],mc=JOBC[Tk.main];
+  var Tk=tracker(),C=Tk.jobs.Caf,M=Tk.main?Tk.jobs[Tk.main]:null,mc=M?JOBC[Tk.main]:null;
   function cell(name,o,color){return '<div class="ring-cell"><div class="ring-wrap">'+ring(o.prog,color,112,14,o.progP)+'<div class="ring-pct">'+Math.round(o.prog*100)+'<small>%</small></div></div><div class="ring-name" style="color:var('+color+')">'+name+'</div><div class="ring-main">'+hrs(o.logged,1)+' <span>of '+hrs(o.planned,1)+' hrs</span></div><div class="ring-sub">'+(o.planned>0&&o.left<=0?'Goal reached':o.plannedHrs>0?hrs(o.left,1)+' left · '+hrs(o.plannedHrs,1)+' planned':hrs(o.left,1)+' left · '+hrs(o.perWeek,1)+'/wk')+'</div></div>'}
-  var rings=cell('Caf',C,'--orange')+cell(Tk.main,M,mc[1]);
+  var rings=cell('Caf',C,'--orange')+(M?cell(Tk.main,M,mc[1]):'');
   function wk(name,o){var b=d2n(o.r.base),jc=JOBC[name];return vrow(name,hrs(o.weekHrs)+' hrs','Week of '+fmtD(o.weekStart,'md')+' ('+WD[wday(b)]+'–'+WD[wday(b+6)]+') · '+hrs(o.untilOT)+' hrs until overtime',{icon:jc[0],color:jc[1],vcls:name==='Caf'&&o.untilOT<=0?'r':''})}
-  var week=wk('Caf',C)+wk(Tk.main,M);
-  var prog=vrow('Caf take-home logged',money(C.th),signed(C.vsPlan,2)+' vs. the plan’s rate')+
+  var week=wk('Caf',C)+(M?wk(Tk.main,M):'');
+  var prog=!M?vrow('Caf take-home logged',money(C.th),signed(C.vsPlan,2)+' vs. the plan’s rate')+
+    vrow('Extra money logged',money(Tk.extra),'eBay sales, birthday money')+
+    vrow('Caf hours that covers',hrs(Tk.cafCover,1)+' hrs','Extra money ÷ caf take-home/hr'):
+    vrow('Caf take-home logged',money(C.th),signed(C.vsPlan,2)+' vs. the plan’s rate')+
     vrow(Tk.main+' take-home logged',money(M.th),signed(M.vsPlan,2)+' vs. the plan’s rate')+
     vrow('Extra caf hours past the plan',hrs(Tk.extraCaf,1)+' hrs','Every caf hour past the plan counts toward '+Tk.main)+
     vrow('Extra money logged',money(Tk.extra),'eBay sales, birthday money')+
@@ -1419,11 +1441,11 @@ hours:function(){
       '<div class="row-main"><div class="row-title">'+esc(e.source)+'</div><div class="row-sub">'+fmtD(d2n(e.date),'mdy')+(e.notes?' · '+esc(e.notes):'')+'</div></div><div class="row-val g">+'+money(e.amount)+'</div></div></div>';
   }).join(''):'<button type="button" class="row action tap" data-act="add-extra">Add Extra Money</button>';
   var noPlan=Tk.chosen?'':sec('',vrow('Set Up Your Plan',null,'Hours count toward the plan you pick. Until then they use '+esc(Tk.c.label)+'.',{act:'wizard',icon:'sparkles',color:'--tint'}),'',{tight:true});
-  var body=noPlan+'<section class="sec tight"><div class="group rings">'+rings+'</div><div class="sec-f">Counting toward '+(Tk.chosen?'your plan, ':'')+esc(Tk.c.label)+'. Caf from '+fmtD(C.from,'md')+' to '+fmtD(C.through,'md')+'; '+Tk.main+' '+fmtD(M.from,'md')+' to '+fmtD(M.through,'md')+'.</div></section>'+
+  var body=noPlan+'<section class="sec tight"><div class="group rings'+(M?'':' one')+'">'+rings+'</div><div class="sec-f">Counting toward '+(Tk.chosen?'your plan, ':'')+esc(Tk.c.label)+'. Caf from '+fmtD(C.from,'md')+' to '+fmtD(C.through,'md')+(M?'; '+Tk.main+' '+fmtD(M.from,'md')+' to '+fmtD(M.through,'md'):'')+'.</div></section>'+
     sec('This workweek',week)+
     plannedSec+
     sec('Shifts',shifts,groups.length?'Each row is one day at one job. Swipe left to delete it; tap to edit or add a shift.':'',{hRight:groups.length?'<span>'+groups.length+' day'+(groups.length===1?'':'s')+'</span>':''})+
-    sec('Extra money',extra,'Log what actually lands (after fees and shipping). It cuts the '+Tk.main+' hours you still need. Don’t also add it to savings on Inputs, or it counts twice.',{hRight:ex.length?'<button type="button" class="hbtn" data-act="add-extra">Add</button>':''})+
+    sec('Extra money',extra,'Log what actually lands (after fees and shipping). It cuts the '+(Tk.main||'caf')+' hours you still need. Don’t also add it to savings on Inputs, or it counts twice.',{hRight:ex.length?'<button type="button" class="hbtn" data-act="add-extra">Add</button>':''})+
     sec('Progress',prog)+
     sec('',vrow('Pay Periods',null,'Hours, overtime and estimated checks per period',{act:'push',attrs:'data-view="periods"',icon:'calendar',color:'--red'})+
       vrow('Pay Rules',null,'Rates, breaks, overtime, withholding',{act:'push',attrs:'data-view="payrules"',icon:'doc',color:'--gray'})+
@@ -1431,13 +1453,13 @@ hours:function(){
   return {title:'Hours',large:true,eyebrow:Tk.chosen?'Your plan · '+Tk.c.label:'No plan picked yet',right:gbtn('plus','add-shift','','Log a shift'),body:body};
 },
 periods:function(){
-  var Tk=tracker(),opts=['Caf',Tk.main],job=opts.indexOf(UI.perJob)>=0?UI.perJob:'Caf',rows=periodList(job,Tk),r=Tk.jobs[job].r;
+  var Tk=tracker(),opts=Tk.main?['Caf',Tk.main]:['Caf'],job=opts.indexOf(UI.perJob)>=0?UI.perJob:'Caf',rows=periodList(job,Tk),r=Tk.jobs[job].r;
   var tot={h:0,ot:0,gross:0,th:0,n:0};rows.forEach(function(x){tot.h+=x.h;tot.ot+=x.ot;tot.gross+=x.gross;tot.th+=x.th;tot.n+=x.n});
   var list=rows.map(function(x){
     var sub=(x.pay!==null?'Payday '+fmtD(x.pay,'wmd'):x.n+' shift'+(x.n===1?'':'s'))+(x.pay!==null&&x.n?' · '+x.n+' shift'+(x.n===1?'':'s'):'')+(x.ot>0?' · '+hrs(x.ot)+' OT hrs':'')+(x.gross>0?' · '+money(x.gross)+' gross':'');
     return '<div class="row"><div class="row-main"><div class="row-title">'+fmtD(x.s,'md')+' – '+fmtD(x.e,'md')+(x.now?' <span class="mini-pill now">Now</span>':'')+'</div><div class="row-sub">'+sub+'</div></div><div class="row-val two"><b>'+hrs(x.h)+' hrs</b><span>'+money(x.th)+'</span></div></div>';
   }).join('')+'<div class="row strong"><div class="row-main"><div class="row-title">Total</div><div class="row-sub">'+tot.n+' shifts · '+hrs(tot.ot)+' OT hrs · '+money(tot.gross)+' gross</div></div><div class="row-val two"><b>'+hrs(tot.h)+' hrs</b><span>'+money(tot.th)+'</span></div></div>';
-  var body='<div class="seg-row">'+seg('ui.perJob',opts.map(function(o){return [o,o]}),job,'wide')+'</div>'+
+  var body=(opts.length>1?'<div class="seg-row">'+seg('ui.perJob',opts.map(function(o){return [o,o]}),job,'wide')+'</div>':'')+
     sec(job+' pay periods',list,'The current period is marked Now. '+(r.payday===null?'Paydays show once you add one in Pay Rules. ':'')+'Estimates: check each one against your real stub.');
   return {title:'Pay Periods',body:body};
 },
@@ -1534,7 +1556,9 @@ spanish:function(){
     numRow('goals.a2Hrs','Target hours by your flight','','hrs')+
     pillRow('goals.start','date','Count from','Earlier time isn’t counted')+
     pillRow('goals.remindAt','time','Daily reminder time')+
-    vrow('Add Daily Reminder to Calendar',null,'A repeating event with an alert until you fly',{act:'cal-study',icon:'bell',color:'--red',chev:false});
+    vrow('Add Daily Reminder to Calendar',null,'A repeating event with an alert until you fly',{act:'cal-study',icon:'bell',color:'--red',chev:false})+
+    toggleRow('goals.sound','Celebration music','Confetti and the Mexican Hat Dance when you hit today’s goal. Silent mode mutes it.')+
+    vrow('Play It',null,'Hear the celebration now',{act:'play-jarabe',icon:'play',color:'--green',chev:false});
   var body=sec('',hero,'',{cls:'sp-hero',tight:true})+sec('',timer,'',{tight:true,cls:TIMER?'timer-g':''})+
     sec('Log time',quick,'Tap what you did. Five minutes here and there adds up.')+
     sec('This week',chart,'Line = the average day for your weekly target.',{cls:'pad'})+
@@ -1687,6 +1711,7 @@ function wizSync(d){
   else if(d.depMode==='custom'&&!isDate(d.depart))d.depart='2027-02-11';
   if(d.job&&isDate(d.depart)&&!d.datesTouched){var w=defaultWindow(d.job,d.depart);d.first=w.first;d.last=w.last}
   if(isDate(d.depart)&&!needsFly(d.depart))d.flyHome=false;
+  if(!d.cafTouched)d.caf=d.job==='None'?cafMax(isDate(d.depart)?d.depart:'2027-02-11'):80;
 }
 function wizHead(d,title,sub){
   return '<div class="wiz-prog" aria-hidden="true">'+[1,2,3,4,5].map(function(i){return '<i class="'+(i<=d.step?'on':'')+'"></i>'}).join('')+'</div>'+
@@ -1697,7 +1722,9 @@ function choice(path,val,cur,icon,color,title,sub,metric){
     '<span class="ch-main"><span class="ch-t">'+title+'</span><span class="ch-s">'+sub+'</span>'+(metric||'')+'</span><span class="radio">'+svg('check')+'</span></button>';
 }
 function chMetric(c,suffix){return '<span class="ch-m '+(c.left>=0?'g':'r')+'">'+signed(c.left)+' <span>'+suffix+'</span></span>'}
-function wizEst(d,job,dep){var w=defaultWindow(job,dep);return calcScenario({job:job,first:w.first,last:w.last,depart:dep,caf:num(d.caf),flyHome:false,payDebt:d.payDebt!==false},-1)}
+function wizCaf(d,job,dep){if(job==='None')return d.job==='None'&&d.cafTouched?num(d.caf):cafMax(dep);return d.job==='None'&&!d.cafTouched?80:num(d.caf)}
+function wizEst(d,job,dep){var w=defaultWindow(job,dep);return calcScenario({job:job,first:w.first,last:w.last,depart:dep,caf:wizCaf(d,job,dep),flyHome:false,payDebt:d.payDebt!==false},-1)}
+function cafClosedTxt(){return CAF_CLOSED.map(function(r){var a=d2n(r[0]),b=d2n(r[1]),sm=fmtD(a,'md').split(' ')[0]===fmtD(b,'md').split(' ')[0];return fmtD(a,'md')+(sm?'–'+fmtD(b,'md').split(' ')[1]:' – '+fmtD(b,'md'))}).join(' and ')}
 var SHEETS={
   wizard:{
     title:function(){return ''},
@@ -1706,10 +1733,10 @@ var SHEETS={
     valid:function(d){
       if(d.step===1)return !!d.job;
       if(d.step===2)return isDate(d.depart)&&d2n(d.depart)>todayN();
-      if(d.step===3)return isDate(d.first)&&isDate(d.last)&&d2n(d.last)>=d2n(d.first)&&d2n(d.last)<d2n(d.depart)&&num(d.caf)>=0;
+      if(d.step===3)return (d.job==='None'||isDate(d.first)&&isDate(d.last)&&d2n(d.last)>=d2n(d.first)&&d2n(d.last)<d2n(d.depart))&&num(d.caf)>=0;
       return true;
     },
-    hook:function(d,p){if(p==='first'||p==='last'){d.datesTouched=true;return}if(p==='job'||p==='depMode'||p==='depart')wizSync(d)},
+    hook:function(d,p){if(p==='caf'){d.cafTouched=true;return}if(p==='first'||p==='last'){d.datesTouched=true;return}if(p==='job'||p==='depMode'||p==='depart')wizSync(d)},
     foot:function(d){
       var live='';
       if(d.step>=2&&d.step<5&&wizReady(d)&&SHEETS.wizard.valid(d)){var c=calcScenario(wizPlan(d),-1);live='<div class="wiz-live"><span>Left over with these choices</span><b class="'+(c.left>=0?'g':'r')+'">'+signed(c.left)+'</b></div>'}
@@ -1719,24 +1746,28 @@ var SHEETS={
       var I=S.inputs;
       if(d.step===1){
         var dep=isDate(d.depart)?d.depart:'2027-02-11',when='left over, leaving '+fmtD(d2n(dep),'md');
-        return wizHead(d,'Which job are you going for?','Your main job from Nov 30 until you fly. Caf shifts stack on top either way.')+
+        return wizHead(d,'Which job are you going for?','Your main job from Nov 30 until you fly, if you get one. Caf shifts stack on top either way.')+
           '<div class="choices" role="radiogroup" aria-label="Main job">'+
           choice('draft.job','Walmart',d.job,'cart','--tint','Walmart (Mount Vernon)',money(I.wmPay)+'/hr, '+hrs(I.wmHrs)+' hrs a week, about '+money(I.wmTH)+'/hr after taxes. Ask if you can transfer to a Puerto Rico store.',chMetric(wizEst(d,'Walmart',dep),when))+
           choice('draft.job','Ariel',d.job,'factory','--indigo','Ariel via Shannon Staffing',money(I.arRate)+'/hr with shift premium. Fri–Sun, 5am–5pm: work 36, get paid for 40. About '+pct(I.arPct)+' take-home.',chMetric(wizEst(d,'Ariel',dep),when))+
+          choice('draft.job','None',d.job,'fork','--orange','Caf only','No second job. Walk in and help whenever it’s open (closed '+cafClosedTxt()+').',chMetric(wizEst(d,'None',dep),d.job==='None'&&d.cafTouched?when:'even maxing out the caf'))+
           '</div><p class="wiz-note">Left over = savings + pay − the 10% buffer − the 8-week trip − school debt.</p>';
       }
       if(d.step===2){
         var f11='2027-02-11',j31='2027-01-31';
         return wizHead(d,'When do you fly to San Juan?','Leaving later means more paychecks. Leaving earlier means more time on the island.')+
           '<div class="choices" role="radiogroup" aria-label="Departure">'+
-          choice('draft.depMode','feb11',d.depMode,'plane','--teal',fmtD(d2n(f11),'wmd'),'The day after your brother’s birthday on Feb 10.',chMetric(wizEst(d,d.job,f11),'left over with '+d.job))+
-          choice('draft.depMode','jan31',d.depMode,'plane','--orange',fmtD(d2n(j31),'wmd'),'11 days sooner. You’d miss Feb 10 unless you fly back for it.',chMetric(wizEst(d,d.job,j31),'left over with '+d.job))+
-          choice('draft.depMode','custom',d.depMode,'calendar','--gray','Another date','Pick your own departure day.',d.depMode==='custom'&&isDate(d.depart)?chMetric(wizEst(d,d.job,d.depart),'left over with '+d.job):'')+
+          choice('draft.depMode','feb11',d.depMode,'plane','--teal',fmtD(d2n(f11),'wmd'),'The day after your brother’s birthday on Feb 10.',chMetric(wizEst(d,d.job,f11),'left over with '+jobName(d.job)))+
+          choice('draft.depMode','jan31',d.depMode,'plane','--orange',fmtD(d2n(j31),'wmd'),'11 days sooner. You’d miss Feb 10 unless you fly back for it.',chMetric(wizEst(d,d.job,j31),'left over with '+jobName(d.job)))+
+          choice('draft.depMode','custom',d.depMode,'calendar','--gray','Another date','Pick your own departure day.',d.depMode==='custom'&&isDate(d.depart)?chMetric(wizEst(d,d.job,d.depart),'left over with '+jobName(d.job)):'')+
           '</div>'+(d.depMode==='custom'?sec('',pillRow('draft.depart','date','Departure date')):'');
       }
       if(d.step===3){
         var bad=isDate(d.first)&&isDate(d.last)&&(d2n(d.last)<d2n(d.first)?'Your last day is before your first week.':d2n(d.last)>=d2n(d.depart)?'Your last day has to be before you fly ('+fmtD(d2n(d.depart),'md')+').':'');
         var c=!bad&&wizReady(d)?calcScenario(wizPlan(d),-1):null;
+        if(d.job==='None'){var cmx=cafMax(d.depart);
+          return wizHead(d,'How many caf hours?','With no second job, the caf is all of your pay. Aim high, but it’s still not guaranteed.')+
+            sec('Caf',cafRow('draft.caf',I)+vrow('Most you could work','About '+hrs(cmx)+' hrs','8 hrs on every open day, 40 a week max',{vcls:num(d.caf)>cmx?'r':''}),'Closed '+cafClosedTxt()+'. You can walk in and offer to help any day it’s open.');}
         return wizHead(d,'When are you working?','Filled in from your what-ifs. Change them if your start date or last shift moves.')+
           sec(d.job,pillRow('draft.first','date','First week of work',wday(d2n(d.first))===1?'Monday':'Pick a Monday')+
             pillRow('draft.last','date','Last day of work',d.job==='Ariel'?'Your last Fri–Sun shift':'')+
@@ -1752,13 +1783,13 @@ var SHEETS={
             :sec('','<div class="row"><div class="row-main"><div class="row-title">Home for Feb 10</div><div class="row-sub">You fly '+fmtD(d2n(d.depart),'md')+', so no extra flight needed.</div></div><span class="status g">'+svg('check')+'Covered</span></div>'));
       }
       var p=wizPlan(d),c2=calcScenario(p,-1),pos=c2.left>=0;
-      var gap=pos?0:Math.ceil(-c2.left/(num(I.cafTH)*(1-num(I.buffer))));
-      return wizHead(d,'Your plan',pos?'This covers the trip, '+(p.payDebt?'the school debt ':'')+'and the $1,000 cushion back home.':'This comes up '+money(-c2.left,0)+' short. About '+gap+' more caf hours would close it.')+
+      var gap=pos?0:Math.ceil(-c2.left/(num(I.cafTH)*(1-num(I.buffer)))),cmx2=cafMax(p.depart);
+      return wizHead(d,'Your plan',pos?'This covers the trip, '+(p.payDebt?'the school debt ':'')+'and the $1,000 cushion back home.':'This comes up '+money(-c2.left,0)+' short. About '+gap+' more caf hours would close it'+(p.caf+gap>cmx2?', more than the caf can give before you fly.':'.'))+
         sec('',resultCard(c2),'',{cls:'result',tight:true})+
-        sec('Summary',vrow('Main job',esc(p.job)+' + Caf')+
-          vrow('Work',fmtD(d2n(p.first),'md')+' – '+fmtD(d2n(p.last),'md'),hrs(c2.weeks,1)+' weeks, about '+hrs(c2.hours,0)+' paid hours')+
+        sec('Summary',vrow('Main job',p.job==='None'?'None':esc(p.job)+' + Caf',p.job==='None'?'Caf shifts only':'')+
+          (p.job==='None'?'':vrow('Work',fmtD(d2n(p.first),'md')+' – '+fmtD(d2n(p.last),'md'),hrs(c2.weeks,1)+' weeks, about '+hrs(c2.hours,0)+' paid hours'))+
           vrow('Planned caf hours',hrs(p.caf)+' hrs','A goal, not guaranteed')+
-          (p.caf>0?(function(){var z=calcScenario(Object.assign({},p,{caf:0}),-1).left;return vrow('If you get no caf hours',signed(z),'What’s left over without them',{vcls:z>=0?'g':'r'})})():'')+
+          (p.caf>0&&p.job!=='None'?(function(){var z=calcScenario(Object.assign({},p,{caf:0}),-1).left;return vrow('If you get no caf hours',signed(z),'What’s left over without them',{vcls:z>=0?'g':'r'})})():'')+
           vrow('Fly to San Juan',fmtD(c2.dep,'wmdy'))+
           vrow('School debt',p.payDebt?'Paid before you go':'Stays on 0% plan')+
           (needsFly(p.depart)?vrow('Feb 10 flight',p.flyHome?'Yes':'No'):'')+
@@ -1834,10 +1865,10 @@ var SHEETS={
     title:function(d){return d.id?'Edit Extra Money':'Extra Money'},
     valid:function(d){return isDate(d.date)&&num(d.amount)>0},
     body:function(d){
-      var Tk=tracker();
+      var Tk=tracker(),per=Tk.main?Tk.mainThr:Tk.cafThr,nm=Tk.main||'caf';
       return '<div class="seg-row">'+seg('draft.source',[['eBay sale','eBay sale'],['Birthday money','Birthday'],['Other','Other']],d.source,'wide')+'</div>'+
         sec('',pillRow('draft.date','date','Date')+numRow('draft.amount','Amount','After fees and shipping','$',{ph:'0.00'}),
-          num(d.amount)>0&&Tk.mainThr>0?'Covers about '+hrs(num(d.amount)/Tk.mainThr,1)+' '+Tk.main+' hours at '+money(Tk.mainThr)+'/hr take-home.':'It cuts the '+Tk.main+' hours you still need.')+
+          num(d.amount)>0&&per>0?'Covers about '+hrs(num(d.amount)/per,1)+' '+nm+' hours at '+money(per)+'/hr take-home.':'It cuts the '+nm+' hours you still need.')+
         sec('','<div class="row"><input class="textin" id="f-draft-notes" data-bind="draft.notes" data-kind="text" placeholder="Notes" value="'+esc(d.notes)+'" aria-label="Notes"></div>')+
         (d.id?sec('','<button type="button" class="row action red tap" data-act="sheet-delete">Delete</button>'):'');
     },
@@ -1956,17 +1987,76 @@ SHEETS.balance={
   },
   del:function(d){delItem('balances',d.id,'Balance update deleted')}
 };
+/* ===== celebration music: El Jarabe Tapatío (the Mexican Hat Dance). Standard melody by Jesús González Rubio (d. 1874), public domain. Synthesized, no audio files. ===== */
+var JT=[[81,1],[80,1],
+  [81,1],[78,1],[77,1],[78,1],[74,1],[73,1],
+  [74,1],[69,2],[0,1],[66,1],[67,1],
+  [69,1],[71,1],[73,1],[74,1],[76,1],[78,1],
+  [79,1],[76,2],[0,1],[79,1],[78,1],
+  [79,1],[76,1],[75,1],[76,1],[73,1],[71,1],
+  [73,1],[69,2],[0,1],[81,1],[80,1],
+  [81,1],[83,1],[81,1],[79,1],[78,1],[76,1],
+  [74,3]];
+var JT_BARS=['D','D','D','A7','A7','A7','A7','D'],JT_CH={D:{b:[50,45],c:[62,66,69]},A7:{b:[45,52],c:[61,64,67]}};
+var AC=null;
+function soundOn(){var v=S.goals&&S.goals.sound;return !(v===false||v===0||v==='0')}
+function audioCtx(){
+  var C=window.AudioContext||window.webkitAudioContext;if(!C)return null;
+  if(!AC){try{AC=new C()}catch(e){return null}}
+  if(AC.state!=='running'){try{var p=AC.resume();if(p&&p.catch)p.catch(function(){})}catch(e){}}
+  return AC;
+}
+function warmAudio(){if(soundOn()&&(!AC||AC.state!=='running'))audioCtx()}
+document.addEventListener('touchend',warmAudio,{passive:true,capture:true});
+document.addEventListener('mousedown',warmAudio,{capture:true});
+function inD(m){return [2,4,6,7,9,11,1].indexOf(((m%12)+12)%12)>=0}
+function thirdBelow(m){
+  if(!inD(m))return inD(m-3)?m-3:m-4;
+  var k=m,n=0;while(n<2){k--;if(inD(k))n++}return k;
+}
+function playJarabe(){
+  var a=audioCtx();if(!a)return false;
+  try{
+    var e=0.14,t0=a.currentTime+0.08,comp=a.createDynamicsCompressor(),mv=a.createGain();
+    mv.gain.value=0.6;mv.connect(comp);comp.connect(a.destination);
+    var voice=function(type,m,t,d,vol,cut,det){
+      var o=a.createOscillator(),f=a.createBiquadFilter(),g=a.createGain();
+      o.type=type;o.frequency.value=440*Math.pow(2,(m-69)/12);if(det)o.detune.value=det;
+      f.type='lowpass';f.frequency.value=cut;
+      g.gain.setValueAtTime(0.0001,t);g.gain.exponentialRampToValueAtTime(vol,t+0.012);
+      g.gain.setValueAtTime(vol,t+Math.max(0.02,d*0.5));g.gain.exponentialRampToValueAtTime(0.0001,t+d);
+      o.connect(f);f.connect(g);g.connect(mv);o.start(t);o.stop(t+d+0.05);
+    };
+    var t=t0;
+    JT.forEach(function(n,i){
+      var d=n[1]*e,last=i===JT.length-1;
+      if(n[0]){var len=last?d*2.2:d*0.85;
+        voice('sawtooth',n[0],t,len,0.15,3000,-7);voice('sawtooth',n[0],t,len,0.11,3000,8);
+        voice('square',last?66:thirdBelow(n[0]),t,len,0.06,2000,0)}
+      t+=d;
+    });
+    JT_BARS.forEach(function(ch,b){
+      var c=JT_CH[ch],bt=t0+(2+b*6)*e,end=b===JT_BARS.length-1;
+      if(end){voice('sawtooth',c.b[0]-12,bt,e*6,0.24,700,0);c.c.forEach(function(m){voice('square',m,bt,e*6,0.045,1800,0)});return}
+      voice('sawtooth',c.b[0]-12,bt,e*1.6,0.24,700,0);voice('sawtooth',c.b[1]-12,bt+3*e,e*1.6,0.22,700,0);
+      [1,2,4,5].forEach(function(k){c.c.forEach(function(m){voice('square',m,bt+k*e,e*0.55,0.04,1800,0)})});
+    });
+    return true;
+  }catch(err){return false}
+}
 var goalPrev=null,celebrate=false;
 function goalSnap(){
-  var M=moneyState(),Tk=M.Tk,C=Tk.jobs.Caf,Mn=Tk.jobs[Tk.main];
+  var M=moneyState(),Tk=M.Tk,C=Tk.jobs.Caf,Mn=Tk.main?Tk.jobs[Tk.main]:null;
   var St=studyState();
-  return {week:St.weekGoal>0&&St.week>=St.weekGoal,course:St.left===0&&num(S.goals.unitsLeft)>0,caf:C.planned>0&&C.prog>=1,main:Mn.planned>0&&Mn.prog>=1,mainName:Tk.main,money:M.prog>=1,track:M.over>=0,tasks:S.tasks.length>0&&S.tasks.every(function(x){return x.status==='Done'})};
+  return {day:St.dayGoal>0&&St.today>=St.dayGoal,week:St.weekGoal>0&&St.week>=St.weekGoal,course:St.left===0&&num(S.goals.unitsLeft)>0,caf:C.planned>0&&C.prog>=1,main:!!Mn&&Mn.planned>0&&Mn.prog>=1,mainName:Tk.main,money:M.prog>=1,track:M.over>=0,tasks:S.tasks.length>0&&S.tasks.every(function(x){return x.status==='Done'})};
 }
 function checkGoals(){
   var g;try{g=goalSnap()}catch(e){return}
   if(goalPrev&&celebrate){
-    var hit=g.course&&!goalPrev.course?'Babbel course finished!':g.week&&!goalPrev.week?'Weekly Spanish goal hit!':g.money&&!goalPrev.money?'You have enough to go!':g.main&&!goalPrev.main?g.mainName+' hours goal reached!':g.caf&&!goalPrev.caf?'Caf hours goal reached!':g.tasks&&!goalPrev.tasks?'Checklist done!':g.track&&!goalPrev.track?'You’re on track!':'';
+    var dayHit=g.day&&!goalPrev.day;
+    var hit=g.course&&!goalPrev.course?'Babbel course finished!':g.week&&!goalPrev.week?'Weekly Spanish goal hit!':dayHit?'¡Lo lograste! Today’s Spanish goal is done':g.money&&!goalPrev.money?'You have enough to go!':g.main&&!goalPrev.main?g.mainName+' hours goal reached!':g.caf&&!goalPrev.caf?'Caf hours goal reached!':g.tasks&&!goalPrev.tasks?'Checklist done!':g.track&&!goalPrev.track?'You’re on track!':'';
     if(hit){confetti();setTimeout(function(){toast(hit)},250)}
+    if(dayHit&&soundOn())playJarabe();
   }
   goalPrev=g;celebrate=false;
 }
@@ -2029,7 +2119,7 @@ function openSheet(kind,draft){
 }
 function openWizard(){
   var P=S.plan,d;
-  if(P)d={step:1,job:P.job,depart:P.depart,depMode:P.depart==='2027-02-11'?'feb11':P.depart==='2027-01-31'?'jan31':'custom',first:P.first,last:P.last,caf:P.caf,payDebt:P.payDebt,flyHome:P.flyHome,datesTouched:false};
+  if(P)d={step:1,job:P.job,depart:P.depart,depMode:P.depart==='2027-02-11'?'feb11':P.depart==='2027-01-31'?'jan31':'custom',first:P.first,last:P.last,caf:P.caf,payDebt:P.payDebt,flyHome:P.flyHome,datesTouched:false,cafTouched:true};
   else d={step:1,job:'',depart:'',depMode:'',first:'2026-11-30',last:'',caf:80,payDebt:true,flyHome:false,datesTouched:false};
   openSheet('wizard',d);
 }
@@ -2129,6 +2219,7 @@ var A={
   },
   step:function(t){var p=t.dataset.bind,v=num(getAny(p))+num(t.dataset.d);setAny(p,Math.max(num(t.dataset.min),+v.toFixed(4)))},
   wizard:function(){openWizard()},
+  'play-jarabe':function(){var ok=playJarabe();confetti();if(!ok)toast('Sound isn’t available in this browser')},
   'add-study':function(t){var a=t&&t.dataset&&ACTMAP[t.dataset.a]?t.dataset.a:'';openSheet('study',{id:null,date:n2d(todayN()),act:a,mins:a==='babbel'?15:'',units:a==='babbel'?1:0,notes:''});if(a!=='babbel'){var m=$('#f-draft-mins');if(m)try{m.focus()}catch(e){}}},
   'edit-study':function(t){var e=S.study.filter(function(x){return x.id===t.dataset.id})[0];if(e)openSheet('study',clone(e))},
   'del-study':function(t){delItem('study',t.dataset.id,'Deleted');render()},
