@@ -1557,7 +1557,7 @@ spanish:function(){
     pillRow('goals.start','date','Count from','Earlier time isn’t counted')+
     pillRow('goals.remindAt','time','Daily reminder time')+
     vrow('Add Daily Reminder to Calendar',null,'A repeating event with an alert until you fly',{act:'cal-study',icon:'bell',color:'--red',chev:false})+
-    toggleRow('goals.sound','Celebration music','Confetti and the Mexican Hat Dance when you hit today’s goal. Silent mode mutes it.')+
+    toggleRow('goals.sound','Celebration music','Confetti and the Mexican Hat Dance when you hit today’s goal. Uses your media volume and plays even on silent.')+
     vrow('Play It',null,'Hear the celebration now',{act:'play-jarabe',icon:'play',color:'--green',chev:false});
   var body=sec('',hero,'',{cls:'sp-hero',tight:true})+sec('',timer,'',{tight:true,cls:TIMER?'timer-g':''})+
     sec('Log time',quick,'Tap what you did. Five minutes here and there adds up.')+
@@ -1998,57 +1998,92 @@ var JT=[[81,1],[80,1],
   [81,1],[83,1],[81,1],[79,1],[78,1],[76,1],
   [74,3]];
 var JT_BARS=['D','D','D','A7','A7','A7','A7','D'],JT_CH={D:{b:[50,45],c:[62,66,69]},A7:{b:[45,52],c:[61,64,67]}};
-var AC=null;
+var AC=null,JT_EL=null,JT_PREP=null;
 function soundOn(){var v=S.goals&&S.goals.sound;return !(v===false||v===0||v==='0')}
-function audioCtx(){
-  var C=window.AudioContext||window.webkitAudioContext;if(!C)return null;
-  if(!AC){try{AC=new C()}catch(e){return null}}
-  if(AC.state!=='running'){try{var p=AC.resume();if(p&&p.catch)p.catch(function(){})}catch(e){}}
-  return AC;
-}
-function warmAudio(){if(soundOn()&&(!AC||AC.state!=='running'))audioCtx()}
-document.addEventListener('touchend',warmAudio,{passive:true,capture:true});
-document.addEventListener('mousedown',warmAudio,{capture:true});
 function inD(m){return [2,4,6,7,9,11,1].indexOf(((m%12)+12)%12)>=0}
 function thirdBelow(m){
   if(!inD(m))return inD(m-3)?m-3:m-4;
   var k=m,n=0;while(n<2){k--;if(inD(k))n++}return k;
 }
-function playJarabe(){
-  var a=audioCtx();if(!a)return false;
+var JT_E=0.14,JT_LEN=(2+7*6+6)*JT_E+0.4;
+/* schedules the whole tune on any audio context (live or offline) */
+function scheduleJarabe(a,t0){
+  var e=JT_E,comp=a.createDynamicsCompressor(),mv=a.createGain();
+  mv.gain.value=0.6;mv.connect(comp);comp.connect(a.destination);
+  var voice=function(type,m,t,d,vol,cut,det){
+    var o=a.createOscillator(),f=a.createBiquadFilter(),g=a.createGain();
+    o.type=type;o.frequency.value=440*Math.pow(2,(m-69)/12);if(det)o.detune.value=det;
+    f.type='lowpass';f.frequency.value=cut;
+    g.gain.setValueAtTime(0.0001,t);g.gain.exponentialRampToValueAtTime(vol,t+0.012);
+    g.gain.setValueAtTime(vol,t+Math.max(0.02,d*0.5));g.gain.exponentialRampToValueAtTime(0.0001,t+d);
+    o.connect(f);f.connect(g);g.connect(mv);o.start(t);o.stop(t+d+0.05);
+  };
+  var t=t0;
+  JT.forEach(function(n,i){
+    var d=n[1]*e,last=i===JT.length-1;
+    if(n[0]){var len=last?d*2.2:d*0.85;
+      voice('sawtooth',n[0],t,len,0.2,3200,0);voice('sawtooth',n[0],t,len,0.06,3200,4);
+      voice('square',last?66:thirdBelow(n[0]),t,len,0.03,1800,0)}
+    t+=d;
+  });
+  JT_BARS.forEach(function(ch,b){
+    var c=JT_CH[ch],bt=t0+(2+b*6)*e,end=b===JT_BARS.length-1;
+    if(end){voice('sawtooth',c.b[0]-12,bt,e*6,0.24,700,0);c.c.forEach(function(m){voice('square',m,bt,e*6,0.045,1800,0)});return}
+    voice('sawtooth',c.b[0]-12,bt,e*1.6,0.24,700,0);voice('sawtooth',c.b[1]-12,bt+3*e,e*1.6,0.22,700,0);
+    [1,2,4,5].forEach(function(k){c.c.forEach(function(m){voice('square',m,bt+k*e,e*0.55,0.04,1800,0)})});
+  });
+}
+function wavBlob(buf){
+  var d=buf.getChannelData(0),n=d.length,sr=buf.sampleRate,b=new ArrayBuffer(44+n*2),v=new DataView(b),i,peak=0;
+  var str=function(o,x){for(var k=0;k<x.length;k++)v.setUint8(o+k,x.charCodeAt(k))};
+  str(0,'RIFF');v.setUint32(4,36+n*2,true);str(8,'WAVE');str(12,'fmt ');v.setUint32(16,16,true);v.setUint16(20,1,true);v.setUint16(22,1,true);
+  v.setUint32(24,sr,true);v.setUint32(28,sr*2,true);v.setUint16(32,2,true);v.setUint16(34,16,true);str(36,'data');v.setUint32(40,n*2,true);
+  for(i=0;i<n;i++)peak=Math.max(peak,Math.abs(d[i]));
+  var g=peak>0?0.9/peak:1;
+  for(i=0;i<n;i++){var x=Math.max(-1,Math.min(1,d[i]*g));v.setInt16(44+i*2,x<0?x*0x8000:x*0x7fff,true)}
+  return new Blob([b],{type:'audio/wav'});
+}
+/* Pre-render the tune once into a WAV and play it with a plain <audio> element.
+   iOS keeps media elements working after the app sleeps; a long-lived Web Audio context can go quiet. */
+function prepJarabe(){
+  if(JT_EL||JT_PREP)return;
+  var O=window.OfflineAudioContext||window.webkitOfflineAudioContext;if(!O||!window.Blob||!window.URL)return;
   try{
-    var e=0.14,t0=a.currentTime+0.08,comp=a.createDynamicsCompressor(),mv=a.createGain();
-    mv.gain.value=0.6;mv.connect(comp);comp.connect(a.destination);
-    var voice=function(type,m,t,d,vol,cut,det){
-      var o=a.createOscillator(),f=a.createBiquadFilter(),g=a.createGain();
-      o.type=type;o.frequency.value=440*Math.pow(2,(m-69)/12);if(det)o.detune.value=det;
-      f.type='lowpass';f.frequency.value=cut;
-      g.gain.setValueAtTime(0.0001,t);g.gain.exponentialRampToValueAtTime(vol,t+0.012);
-      g.gain.setValueAtTime(vol,t+Math.max(0.02,d*0.5));g.gain.exponentialRampToValueAtTime(0.0001,t+d);
-      o.connect(f);f.connect(g);g.connect(mv);o.start(t);o.stop(t+d+0.05);
-    };
-    var t=t0;
-    JT.forEach(function(n,i){
-      var d=n[1]*e,last=i===JT.length-1;
-      if(n[0]){var len=last?d*2.2:d*0.85;
-        voice('sawtooth',n[0],t,len,0.15,3000,-7);voice('sawtooth',n[0],t,len,0.11,3000,8);
-        voice('square',last?66:thirdBelow(n[0]),t,len,0.06,2000,0)}
-      t+=d;
-    });
-    JT_BARS.forEach(function(ch,b){
-      var c=JT_CH[ch],bt=t0+(2+b*6)*e,end=b===JT_BARS.length-1;
-      if(end){voice('sawtooth',c.b[0]-12,bt,e*6,0.24,700,0);c.c.forEach(function(m){voice('square',m,bt,e*6,0.045,1800,0)});return}
-      voice('sawtooth',c.b[0]-12,bt,e*1.6,0.24,700,0);voice('sawtooth',c.b[1]-12,bt+3*e,e*1.6,0.22,700,0);
-      [1,2,4,5].forEach(function(k){c.c.forEach(function(m){voice('square',m,bt+k*e,e*0.55,0.04,1800,0)})});
-    });
-    return true;
-  }catch(err){return false}
+    var sr=44100,ctx=new O(1,Math.ceil(JT_LEN*sr),sr);
+    scheduleJarabe(ctx,0.03);
+    var done=function(buf){try{var el=new Audio();el.preload='auto';el.src=URL.createObjectURL(wavBlob(buf));JT_EL=el}catch(e){}};
+    JT_PREP=true;
+    var r=ctx.startRendering();
+    if(r&&r.then)r.then(done,function(){JT_PREP=null});else ctx.oncomplete=function(ev){done(ev.renderedBuffer)};
+  }catch(e){JT_PREP=null}
+}
+/* fallback: a brand-new Web Audio context for every play, made inside the tap */
+function playJarabeWA(){
+  var C=window.AudioContext||window.webkitAudioContext;if(!C)return false;
+  try{if(AC&&AC.close)AC.close()}catch(e){}
+  try{AC=new C()}catch(e){AC=null;return false}
+  try{var r=AC.resume();if(r&&r.catch)r.catch(function(){})}catch(e){}
+  try{scheduleJarabe(AC,AC.currentTime+0.08);return true}catch(e){return false}
+}
+function playJarabe(){
+  if(JT_EL){
+    try{
+      JT_EL.pause();JT_EL.currentTime=0;JT_EL.volume=1;
+      var p=JT_EL.play();
+      if(p&&p.catch)p.catch(function(){playJarabeWA()});
+      return true;
+    }catch(e){}
+  }
+  return playJarabeWA();
 }
 var goalPrev=null,celebrate=false;
 function goalSnap(){
-  var M=moneyState(),Tk=M.Tk,C=Tk.jobs.Caf,Mn=Tk.main?Tk.jobs[Tk.main]:null;
-  var St=studyState();
-  return {day:St.dayGoal>0&&St.today>=St.dayGoal,week:St.weekGoal>0&&St.week>=St.weekGoal,course:St.left===0&&num(S.goals.unitsLeft)>0,caf:C.planned>0&&C.prog>=1,main:!!Mn&&Mn.planned>0&&Mn.prog>=1,mainName:Tk.main,money:M.prog>=1,track:M.over>=0,tasks:S.tasks.length>0&&S.tasks.every(function(x){return x.status==='Done'})};
+  var g={};
+  try{var St=studyState();g.day=St.dayGoal>0&&St.today>=St.dayGoal;g.week=St.weekGoal>0&&St.week>=St.weekGoal;g.course=St.left===0&&num(S.goals.unitsLeft)>0}catch(e){}
+  try{var M=moneyState(),Tk=M.Tk,C=Tk.jobs.Caf,Mn=Tk.main?Tk.jobs[Tk.main]:null;
+    g.caf=C.planned>0&&C.prog>=1;g.main=!!Mn&&Mn.planned>0&&Mn.prog>=1;g.mainName=Tk.main;g.money=M.prog>=1;g.track=M.over>=0}catch(e){}
+  try{g.tasks=S.tasks.length>0&&S.tasks.every(function(x){return x.status==='Done'})}catch(e){}
+  return g;
 }
 function checkGoals(){
   var g;try{g=goalSnap()}catch(e){return}
@@ -2058,6 +2093,7 @@ function checkGoals(){
     if(hit){confetti();setTimeout(function(){toast(hit)},250)}
     if(dayHit&&soundOn())playJarabe();
   }
+  if(soundOn())prepJarabe();
   goalPrev=g;celebrate=false;
 }
 function confetti(){
