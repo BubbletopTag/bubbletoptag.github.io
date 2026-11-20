@@ -271,6 +271,11 @@ html.sheet-up #status-bar-fill{background:#000}
 .status .ic{font-size:13px;stroke-width:2.8}
 .status.g{background:color-mix(in srgb,var(--green) 15%,transparent)}
 .status.r{background:color-mix(in srgb,var(--red) 13%,transparent)}
+.tone{--tc:var(--tl)}
+@media (prefers-color-scheme: dark){.tone{--tc:var(--td)}}
+.row-val.tone,.res-num.tone,.bar-val.tone,.ch-m.tone,b.tone{color:var(--tc)}
+.bar.tone{background:var(--tc)}
+.status.tone,.mh-proj.tone{background:color-mix(in srgb,var(--tc) 14%,transparent);color:var(--tc)}
 .sbar{position:relative;display:flex;gap:2px;height:22px;margin-top:16px;border-radius:7px;overflow:visible}
 .sbar>i{display:block;min-width:3px;height:100%}
 .sbar>i:first-child{border-radius:7px 0 0 7px}
@@ -815,6 +820,22 @@ function trip(){
 }
 function jobName(j){return j==='None'?'Caf only':j}
 function comboName(j){return j==='None'?'Caf only':j+' + Caf'}
+/* Color for what you'd come home with (the cushion plus anything left over):
+   full cushion green, ~$900 yellow-green, ~$850 yellow, ~$800 orange, under $800 red. Scales with the cushion on Inputs. */
+function tone(left){
+  var cu=num(S.inputs.cushion),home=cu+left,f=cu>0?home/cu:(left>=0?1:0);
+  if(left>=0||f>=1)return {k:'g',v:'',st:'',ok:true,home:home};
+  if(f<0.8)return {k:'r',v:'',st:'',ok:false,home:home};
+  var A=[[0.8,30],[0.85,47],[0.9,75],[1,125]],h=125,i;
+  for(i=0;i<3;i++)if(f<=A[i+1][0]){h=A[i][1]+(A[i+1][1]-A[i][1])*(f-A[i][0])/(A[i+1][0]-A[i][0]);break}
+  h=Math.round(h);var v='--tl:hsl('+h+' 90% 37%);--td:hsl('+h+' 85% 56%);';
+  return {k:'tone',v:v,st:' style="'+v+'"',ok:f>=0.85,home:home};
+}
+function tcls(left){var t=tone(left);return t.k+'"'+t.st}
+function homeLine(over){var cu=num(S.inputs.cushion),h=cu+over;
+  if(over>=0)return 'On track: back home with '+money(h,0);
+  if(h<0)return 'Short '+money(-h,0)+' even with no cushion';
+  return 'Back home with '+money(h,0)+' of your '+money(cu,0)+' cushion';}
 var CAF_CLOSED=[['2026-11-25','2026-11-29'],['2026-12-11','2027-01-13']];
 function cafOpen(n){return !CAF_CLOSED.some(function(r){return n>=d2n(r[0])&&n<=d2n(r[1])})}
 /* Most caf you could realistically work before you fly: 8 paid hrs on each open day, capped at 40 per caf workweek (no caf overtime) */
@@ -836,7 +857,7 @@ function calcScenario(s,idx){
   return {i:idx,job:s.job,none:none,dep:dep,caf:num(s.caf),label:jobName(s.job)+' · '+fmtD(dep,'md'),weeks:weeks,
     cafNeed:left<0&&perCaf>0?num(s.caf)+(-left)/perCaf:null,hours:hours,mainTH:mainTH,cafTH:cafTH,
     savings:sv,before:before,buffer:buffer,atDep:atDep,trip:tr,extraFlight:xf,debtPay:debt,out:out,left:left,
-    status:left>=0?(s.payDebt?'Debt-free + cushion':'Trip funded'):'Short '+money(-left,0),
+    home:num(i.cushion)+left,status:left>=0?(s.payDebt?'Debt-free + cushion':'Trip funded'):num(i.cushion)+left>=0?money(num(i.cushion)+left,0)+' back home':'Short '+money(-left,0),
     debtLeft:num(i.debt)-debt,backHome:dep+num(i.weeks)*7};
 }
 function bestIdx(list){var b=0;list.forEach(function(c,i){if(c.left>list[b].left)b=i});return b}
@@ -1088,7 +1109,7 @@ function vrow(title,val,sub,opt){
   opt=opt||{};var act=opt.act?' data-act="'+opt.act+'"'+(opt.attrs?' '+opt.attrs:'')+' role="button" tabindex="0"':'';
   return '<div class="row'+(opt.act?' tap':'')+(opt.icon?' hi':'')+(opt.strong?' strong':'')+'"'+act+'>'+(opt.icon?tileIcon(opt.icon,opt.color):'')+
     '<div class="row-main"><div class="row-title">'+title+'</div>'+(sub?'<div class="row-sub">'+sub+'</div>':'')+'</div>'+
-    (val!=null?'<div class="row-val'+(opt.strong?' strong':'')+(opt.vcls?' '+opt.vcls:'')+'">'+val+'</div>':'')+(opt.act&&opt.chev!==false?chev():'')+'</div>';
+    (val!=null?'<div class="row-val'+(opt.strong?' strong':'')+(opt.vcls?' '+opt.vcls:'')+'"'+(opt.vst||'')+'>'+val+'</div>':'')+(opt.act&&opt.chev!==false?chev():'')+'</div>';
 }
 function fid(p){return 'f-'+p.replace(/[^\w]/g,'-')}
 function numField(path,unit,opt){
@@ -1236,7 +1257,7 @@ function resultCard(c){
   var pos=c.left>=0;
   var segs=[{l:'Trip',v:c.trip,c:'--tint'},{l:'School debt',v:c.debtPay,c:'--purple'},{l:'Feb 10 flight',v:c.extraFlight,c:'--orange'}];
   var bar=pos?stackBar(segs.concat([{l:'Left over',v:c.left,c:'--green'}]),c.atDep):stackBar(segs,c.out,c.atDep/c.out,'You’ll have '+money(c.atDep,0));
-  return '<div class="res-top"><div><div class="cap">Left over</div><div class="res-num '+(pos?'g':'r')+'">'+signed(c.left)+'</div></div><span class="status '+(pos?'g':'r')+'">'+svg(pos?'check':'warn')+esc(c.status)+'</span></div>'+bar;
+  return '<div class="res-top"><div><div class="cap">Left over</div><div class="res-num '+tcls(c.left)+'>'+signed(c.left)+'</div></div><span class="status '+tcls(c.left)+'>'+svg(tone(c.left).ok?'check':'warn')+esc(c.status)+'</span></div>'+bar;
 }
 function cafRow(path,I){
   return '<div class="row"><div class="row-main"><label class="row-title" for="'+fid(path)+'">Planned caf hours</label><div class="row-sub">A goal, not guaranteed. About '+money(num(getAny(path))*num(I.cafTH),0)+' if you hit it</div></div>'+numField(path,'',{sm:true})+stepper(path,4,0,'Caf hours')+'</div>';
@@ -1264,7 +1285,9 @@ function detailView(s,P,idx,isPlan){
     vrow('Extra flight for Feb 10',money(c.extraFlight))+
     vrow('School debt payoff',money(c.debtPay))+
     vrow('Total needed',money(c.out),'',{strong:true});
-  var result=vrow('Left over',signed(c.left,2),'',{strong:true,vcls:pos?'g':'r'})+
+  var tn=tone(c.left);
+  var result=vrow('Left over',signed(c.left,2),'',{strong:true,vcls:tn.k,vst:tn.st})+
+    vrow('Back home with',c.home>=0?money(c.home,2):signed(c.home,2),'Your '+money(I.cushion,0)+' cushion '+(c.left>=0?'+ ':'− ')+money(Math.abs(c.left),2),{vcls:tn.k,vst:tn.st})+
     (c.cafNeed!==null?vrow('Caf hours to break even',hrs(Math.ceil(c.cafNeed))+' hrs',c.cafNeed>cm?'More than the caf can give before you fly (about '+hrs(cm)+')':none?'Fits if you get most open days':hrs(Math.ceil(c.cafNeed-c.caf))+' more than planned',{vcls:c.cafNeed>cm?'r':''}):'')+
     (c.caf>0&&!none?(function(){var z=calcScenario(Object.assign({},s,{caf:0}),idx).left;return vrow('If you get no caf hours',signed(z,2),'Planned caf hours are a goal, not a sure thing',{vcls:z>=0?'g':'r'})})():'')+
     vrow('School debt still on 0% plan',money(c.debtLeft))+
@@ -1291,9 +1314,9 @@ plan:function(){
   var sc=S.scenarios.map(calcScenario),bi=bestIdx(sc),P=S.plan,pc=P?calcScenario(P,-1):null,h=pc||sc[bi],tb=trip(),t=todayN(),dd=h.dep-t,now=new Date(t*DAY);
   var cap=P?'Your plan':(h.left>=0?'Best what-if':'Closest what-if');
   var hero='<button class="hero" type="button" data-act="push" data-view="'+(P?'plandetail':'scenario')+'" data-i="'+(P?0:bi)+'">'+
-    PR_SVG+'<span class="hero-top"><span class="hero-cap">'+cap+'</span><span class="hero-pill">'+svg(h.left>=0?'check':'warn')+esc(h.status)+'</span></span>'+
-    '<span class="hero-num">'+signed(h.left)+'</span>'+
-    '<span class="hero-sub">Left over with '+esc(comboName(h.job))+', leaving '+fmtD(h.dep,'md')+'</span>'+
+    PR_SVG+'<span class="hero-top"><span class="hero-cap">'+cap+'</span><span class="hero-pill">'+svg(tone(h.left).ok?'check':'warn')+esc(h.left<0&&h.home>=0?money(-h.left,0)+' from your goal':h.status)+'</span></span>'+
+    '<span class="hero-num">'+(h.home>=0?money(h.home,0):signed(h.home))+'</span>'+
+    '<span class="hero-sub">Back home with this · '+esc(comboName(h.job))+', leaving '+fmtD(h.dep,'md')+'</span>'+
     '<span class="hero-chips"><span>'+svg('plane')+(dd>1?dd+' days until San Juan':dd===1?'Fly tomorrow':dd===0?'Fly today':'Trial underway')+'</span><span>'+svg('house')+'Home by '+fmtD(h.backHome,'md')+'</span></span></button>';
   var cta=savings()===0&&num(S.inputs.debt)===0?'<div class="cta"><span class="cta-ic" style="color:var(--green);background:color-mix(in srgb,var(--green) 14%,transparent)">'+svg('doc')+'</span><div class="cta-main"><div class="cta-t">Add your numbers</div><div class="cta-s">Paste the JSON with your balances and checklist. It stays on this device.</div></div><button type="button" class="cap-btn" data-act="import">Import</button></div>':P?'':'<div class="cta"><span class="cta-ic">'+svg('sparkles')+'</span><div class="cta-main"><div class="cta-t">Pick the plan you’re going with</div><div class="cta-s">Choose a job and a departure date. Hours and the timeline follow it.</div></div><button type="button" class="cap-btn" data-act="wizard">Set Up</button></div>';
   function tile(l,v,s,act,target){return '<button class="tile-card" type="button" data-act="'+act+'" '+(act==='tab'?'data-tab':'data-view')+'="'+target+'"><span class="tc-l">'+l+'</span><span class="tc-v">'+v+'</span><span class="tc-s">'+s+'</span></button>'}
@@ -1305,13 +1328,13 @@ plan:function(){
   var ticks=[];for(var v=lo;v<=hi+1e-9;v+=step)ticks.push(v);
   var chart='<div class="chart" role="img" aria-label="Money left over in each plan">'+entries.map(function(e){
     var c=e.c,p=pos(c.left);
-    return '<div class="bar-row"><div class="bar-lab">'+esc(e.lab)+(e.mine?' <b class="mine">YOURS</b>':e.best?' <b>BEST</b>':'')+'</div><div class="bar-area" style="--k:'+k+'"><span class="zero" style="left:'+z+'%"></span><span class="bar '+(c.left>=0?'g':'r')+(e.mine||e.best?' best':'')+'" style="left:'+Math.min(z,p)+'%;width:'+Math.abs(p-z)+'%"></span></div><div class="bar-val '+(c.left>=0?'g':'r')+'">'+signed(c.left)+'</div></div>';
+    return '<div class="bar-row"><div class="bar-lab">'+esc(e.lab)+(e.mine?' <b class="mine">YOURS</b>':e.best?' <b>BEST</b>':'')+'</div><div class="bar-area" style="--k:'+k+'"><span class="zero" style="left:'+z+'%"></span><span class="bar '+tone(c.left).k+(e.mine||e.best?' best':'')+'" style="'+tone(c.left).v+'left:'+Math.min(z,p)+'%;width:'+Math.abs(p-z)+'%"></span></div><div class="bar-val '+tcls(c.left)+'>'+signed(c.left)+'</div></div>';
   }).join('')+'<div class="axis"><div>'+ticks.map(function(v){return '<span style="left:'+pos(v)+'%">'+kfmt(v)+'</span>'}).join('')+'</div><div></div></div></div>';
   var rows=sc.map(function(c,i){
     var jc=JOBC[c.job];
     return '<div class="row tap hi" data-act="push" data-view="scenario" data-i="'+i+'" role="button" tabindex="0">'+tileIcon(jc[0],jc[1])+
       '<div class="row-main"><div class="row-title">'+esc(comboName(c.job))+'</div><div class="row-sub">Leave '+fmtD(c.dep,'md')+' · '+hrs(c.caf)+' planned caf hrs'+(samePlan(S.scenarios[i],P)?' <span class="mini-pill">Your plan</span>':'')+'</div></div>'+
-      '<div class="row-val strong '+(c.left>=0?'g':'r')+'">'+signed(c.left)+'</div>'+chev()+'</div>';
+      '<div class="row-val strong '+tcls(c.left)+'>'+signed(c.left)+'</div>'+chev()+'</div>';
   }).join('');
   var ti=todayItems(),todo=ti.filter(function(x){return x.todo}).length;
   var todayRows=ti.map(function(it){
@@ -1468,7 +1491,7 @@ money:function(){
   var ago=stale<=0?'today':stale===1?'yesterday':stale+' days ago';
   var hero='<div class="mh-top"><div class="ring-wrap sm">'+ring(M.prog,'--green',104,13)+'<div class="ring-pct">'+Math.round(M.prog*100)+'<small>%</small></div></div>'+
     '<div class="mh-main"><div class="cap">In your accounts (est.)</div><div class="mh-num">'+money(M.est)+'</div><div class="row-sub">Goal '+money(M.out,0)+' by '+fmtD(M.dep,'md')+(M.toGo>0?' · '+money(M.toGo,0)+' to go':' · you have enough')+'</div></div></div>'+
-    '<div class="mh-proj '+(pos?'g':'r')+'">'+svg(pos?'check':'warn')+'<span>'+(pos?'On track: '+signed(M.over)+' left when you fly':'Short '+money(-M.over,0)+' when you fly at this pace')+'</span></div>'+
+    '<div class="mh-proj '+tcls(M.over)+'>'+svg(tone(M.over).ok?'check':'warn')+'<span>'+homeLine(M.over)+'</span></div>'+
     '<button type="button" class="mh-upd" data-act="add-balance">'+(stale>3?'<span class="stale">Balances updated '+ago+'</span>':'Balances updated '+ago)+' · Update</button>';
   var quick='<div class="quick" role="group" aria-label="Log an expense">'+['gas','fastfood','groceries','phone','impulse'].map(function(k){var c=CATMAP[k];
     return '<button type="button" class="cat" data-act="add-expense" data-cat="'+k+'"><span class="cat-ic" style="--c:var('+c.c+')">'+svg(c.i)+'</span><span class="cat-l">'+c.s+'</span></button>'}).join('')+
@@ -1501,7 +1524,7 @@ money:function(){
     vrow('Allowance you might still spend','−'+money(M.allowLeft))+
     vrow('Projected when you fly',money(M.proj),'',{strong:true})+
     vrow('Still needed',money(M.need),M.planned>0?'Goal minus '+money(M.planned,0)+' in planned payments made':'Trip + school debt'+(M.c.extraFlight?' + Feb 10 flight':''))+
-    vrow(pos?'Left over':'Short',signed(M.over,2),'',{strong:true,vcls:pos?'g':'r'});
+    vrow('Back home with',num(S.inputs.cushion)+M.over>=0?money(num(S.inputs.cushion)+M.over,2):signed(num(S.inputs.cushion)+M.over,2),'Your '+money(S.inputs.cushion,0)+' cushion '+(M.over>=0?'+ ':'− ')+money(Math.abs(M.over),2)+' at this pace',{strong:true,vcls:tone(M.over).k,vst:tone(M.over).st});
   var body=sec('',hero,'',{cls:'money-hero',tight:true})+quick+
     sec('',allow,'Planned payments (school debt, Airbnb, flights) don’t use the allowance. They shrink your goal instead.')+
     exp+
@@ -1721,7 +1744,7 @@ function choice(path,val,cur,icon,color,title,sub,metric){
   return '<button type="button" class="choice" role="radio" aria-checked="'+(val===cur)+'" data-act="pick" data-bind="'+path+'" data-val="'+esc(val)+'">'+tileIcon(icon,color)+
     '<span class="ch-main"><span class="ch-t">'+title+'</span><span class="ch-s">'+sub+'</span>'+(metric||'')+'</span><span class="radio">'+svg('check')+'</span></button>';
 }
-function chMetric(c,suffix){return '<span class="ch-m '+(c.left>=0?'g':'r')+'">'+signed(c.left)+' <span>'+suffix+'</span></span>'}
+function chMetric(c,suffix){return '<span class="ch-m '+tcls(c.left)+'>'+signed(c.left)+' <span>'+suffix+'</span></span>'}
 function wizCaf(d,job,dep){if(job==='None')return d.job==='None'&&d.cafTouched?num(d.caf):cafMax(dep);return d.job==='None'&&!d.cafTouched?80:num(d.caf)}
 function wizEst(d,job,dep){var w=defaultWindow(job,dep);return calcScenario({job:job,first:w.first,last:w.last,depart:dep,caf:wizCaf(d,job,dep),flyHome:false,payDebt:d.payDebt!==false},-1)}
 function cafClosedTxt(){return CAF_CLOSED.map(function(r){var a=d2n(r[0]),b=d2n(r[1]),sm=fmtD(a,'md').split(' ')[0]===fmtD(b,'md').split(' ')[0];return fmtD(a,'md')+(sm?'–'+fmtD(b,'md').split(' ')[1]:' – '+fmtD(b,'md'))}).join(' and ')}
@@ -1739,7 +1762,7 @@ var SHEETS={
     hook:function(d,p){if(p==='caf'){d.cafTouched=true;return}if(p==='first'||p==='last'){d.datesTouched=true;return}if(p==='job'||p==='depMode'||p==='depart')wizSync(d)},
     foot:function(d){
       var live='';
-      if(d.step>=2&&d.step<5&&wizReady(d)&&SHEETS.wizard.valid(d)){var c=calcScenario(wizPlan(d),-1);live='<div class="wiz-live"><span>Left over with these choices</span><b class="'+(c.left>=0?'g':'r')+'">'+signed(c.left)+'</b></div>'}
+      if(d.step>=2&&d.step<5&&wizReady(d)&&SHEETS.wizard.valid(d)){var c=calcScenario(wizPlan(d),-1);live='<div class="wiz-live"><span>Left over with these choices</span><b class="'+tcls(c.left)+'>'+signed(c.left)+'</b></div>'}
       return live+'<button type="button" class="wiz-btn" id="sheet-save" data-act="wz-next">'+(d.step===5?'Go With This Plan':'Continue')+'</button>';
     },
     body:function(d){
@@ -1784,7 +1807,7 @@ var SHEETS={
       }
       var p=wizPlan(d),c2=calcScenario(p,-1),pos=c2.left>=0;
       var gap=pos?0:Math.ceil(-c2.left/(num(I.cafTH)*(1-num(I.buffer)))),cmx2=cafMax(p.depart);
-      return wizHead(d,'Your plan',pos?'This covers the trip, '+(p.payDebt?'the school debt ':'')+'and the $1,000 cushion back home.':'This comes up '+money(-c2.left,0)+' short. About '+gap+' more caf hours would close it'+(p.caf+gap>cmx2?', more than the caf can give before you fly.':'.'))+
+      return wizHead(d,'Your plan',pos?'This covers the trip, '+(p.payDebt?'the school debt ':'')+'and the $1,000 cushion back home.':(c2.home>=0?'You’d be back home with '+money(c2.home,0)+' of your '+money(I.cushion,0)+' cushion. About '+gap+' more caf hours would fill it':'This comes up '+money(-c2.left,0)+' short. About '+gap+' more caf hours would close it')+(p.caf+gap>cmx2?', more than the caf can give before you fly.':'.'))+
         sec('',resultCard(c2),'',{cls:'result',tight:true})+
         sec('Summary',vrow('Main job',p.job==='None'?'None':esc(p.job)+' + Caf',p.job==='None'?'Caf shifts only':'')+
           (p.job==='None'?'':vrow('Work',fmtD(d2n(p.first),'md')+' – '+fmtD(d2n(p.last),'md'),hrs(c2.weeks,1)+' weeks, about '+hrs(c2.hours,0)+' paid hours'))+
