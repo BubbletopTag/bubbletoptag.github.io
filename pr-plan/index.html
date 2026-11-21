@@ -476,6 +476,32 @@ html.sheet-up #status-bar-fill{background:#000}
 .sp-note .ic{color:var(--green);stroke-width:2.6;flex:none}
 .timer-g{background:linear-gradient(135deg,color-mix(in srgb,var(--teal) 22%,var(--card)),var(--card))}
 .timer{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 16px}
+.group.punch{padding:16px 16px 16px}
+.pn-top{display:flex;align-items:center;gap:8px;font-size:15px;font-weight:600;color:var(--green);letter-spacing:-.2px}
+.pn-dot{flex:none;width:9px;height:9px;border-radius:50%;background:var(--green);animation:pnp 1.8s ease-out infinite}
+@keyframes pnp{0%{box-shadow:0 0 0 0 color-mix(in srgb,var(--green) 60%,transparent)}100%{box-shadow:0 0 0 10px transparent}}
+.pn-since{margin-left:auto;color:var(--label2);font-weight:500;white-space:nowrap}
+.pn-money{font:700 48px/1.05 var(--font-round);letter-spacing:-.8px;font-variant-numeric:tabular-nums;margin-top:10px}
+.pn-money small{font-size:.5em;color:var(--label2);letter-spacing:0;margin-left:1px}
+.pn-sub{font-size:15px;color:var(--label2);margin-top:4px;font-variant-numeric:tabular-nums}
+.pn-hint{display:flex;align-items:flex-start;gap:6px;margin-top:10px;font-size:14px;color:var(--orange)}
+.pn-hint:empty{display:none}
+.pn-hint .ic{flex:none;margin-top:1px}
+.pn-btns{display:flex;gap:10px;margin-top:16px}
+.pn-out{flex:1;height:50px;border:0;border-radius:999px;background:var(--red);color:#fff;font-size:17px;font-weight:600;letter-spacing:-.4px}
+.pn-edit{flex:none;height:50px;padding:0 22px;border:0;border-radius:999px;background:var(--fill);color:var(--label);font-size:17px;font-weight:600;letter-spacing:-.4px}
+.pn-ins{display:flex;gap:6px;flex:none}
+.pn-ft{margin-top:12px;padding:10px 12px;border-radius:14px;background:color-mix(in srgb,var(--green) 10%,transparent)}
+.pn-ft-t{font-size:14px;color:var(--label);letter-spacing:-.1px}
+.pn-ft-t b{color:var(--green);font-variant-numeric:tabular-nums}
+.pn-ft-t span{color:var(--label2)}
+.pn-bar{height:8px;border-radius:99px;background:color-mix(in srgb,var(--green) 18%,transparent);margin-top:8px;overflow:hidden}
+.pn-bar i{display:block;height:100%;border-radius:99px;background:var(--green)}
+.pn-ft-s{margin-top:6px;font-size:13px;color:var(--label2);font-variant-numeric:tabular-nums}
+.pn-ft-s b{color:var(--green);font-weight:600}
+.row-sub b.g,.sec-f b.g{color:var(--green);font-weight:600}
+.pill-btn.go{background:var(--green)}
+.row-val small{font-size:.75em;color:var(--label2)}
 .tm-num{font:700 38px/1.1 var(--font-round);font-variant-numeric:tabular-nums;letter-spacing:-.5px}
 .timer .cap-btn{margin:0}
 .chips{display:flex;flex-wrap:wrap;justify-content:center;gap:8px;padding:0 16px 8px}
@@ -900,10 +926,19 @@ function computeShifts(list){
   });
   return base;
 }
+/* A planned shift counts as worked once a real shift at the same job overlaps it (or, on a past day, once any real shift that day exists). The plan stays saved. */
+function metIds(){
+  var by={},out={},t=todayN();
+  S.shifts.forEach(function(x){if(!x.planned){var k=x.date+'|'+x.job;(by[k]=by[k]||[]).push(x)}});
+  S.shifts.forEach(function(x){if(!x.planned)return;var a=by[x.date+'|'+x.job];if(a&&(d2n(x.date)<t||a.some(function(y){return overlaps(y,x)})))out[x.id]=1});
+  return out;
+}
+function rangeOf(x){var a=hm(x.clockIn)*1440,b=hm(x.clockOut)*1440;if(b<=a)b+=1440;return [a,b]}
+function overlaps(x,y){var a=rangeOf(x),b=rangeOf(y);return a[0]<b[1]&&b[0]<a[1]}
 function activePlan(){if(S.plan)return {s:S.plan,idx:-1,chosen:true};var i=S.rules.track||0;return {s:S.scenarios[i]||S.scenarios[0],idx:i,chosen:false}}
 function tracker(){
   var ap=activePlan(),sc=ap.s,c=calcScenario(sc,ap.idx),t=todayN(),main=sc.job==='None'?null:sc.job;
-  var calcs=computeShifts(S.shifts.filter(function(s){return !s.planned})),pcalcs=S.shifts.some(function(s){return s.planned})?computeShifts(S.shifts).filter(function(x){return x.sh.planned}):[];
+  var met=metIds(),calcs=computeShifts(S.shifts.filter(function(s){return !s.planned})),pcalcs=S.shifts.some(function(s){return s.planned&&!met[s.id]})?computeShifts(S.shifts.filter(function(s){return !met[s.id]})).filter(function(x){return x.sh.planned}):[];
   var jobs={Caf:{from:d2n(S.rules.cafFrom),through:d2n(sc.depart)-1,planned:num(sc.caf),r:rule('Caf'),planRate:planRate('Caf')}};
   if(main)jobs[main]={from:d2n(sc.first),through:d2n(sc.last),planned:c.hours,r:rule(main),planRate:planRate(main)};
   Object.keys(jobs).forEach(function(job){
@@ -928,7 +963,7 @@ function tracker(){
   jobs.Caf.prog=jobs.Caf.planned>0?Math.min(1,(jobs.Caf.logged+cafCover)/jobs.Caf.planned):0;
   if(main)jobs[main].prog=jobs[main].planned>0?Math.min(1,(jobs[main].logged+covered)/jobs[main].planned):0;
   Object.keys(jobs).forEach(function(job){var o=jobs[job];o.perWeek=o.left===0?0:o.left/Math.max(1,(o.through-Math.max(t,o.from)+1)/7);o.progP=o.planned>0?Math.max(0,Math.min(1-o.prog,o.plannedHrs/o.planned)):0});
-  return {chosen:ap.chosen,idx:ap.idx,sc:sc,c:c,main:main,jobs:jobs,extra:extra,extraCaf:extraCaf,covered:covered,cafCover:cafCover,calcs:calcs,pcalcs:pcalcs,cafThr:cafThr,mainThr:mainThr,today:t};
+  return {met:met,chosen:ap.chosen,idx:ap.idx,sc:sc,c:c,main:main,jobs:jobs,extra:extra,extraCaf:extraCaf,covered:covered,cafCover:cafCover,calcs:calcs,pcalcs:pcalcs,cafThr:cafThr,mainThr:mainThr,today:t};
 }
 function periodList(job,T){
   var o=T.jobs[job],r=o.r,b=d2n(r.base),len=num(r.len)||14,start=b+len*Math.floor((o.from-b)/len),rows=[];
@@ -1207,6 +1242,101 @@ var TIMER=null;try{TIMER=JSON.parse(localStorage.getItem('pr-plan-timer')||'null
 if(TIMER&&!(TIMER.start>0&&ACTMAP[TIMER.act]))TIMER=null;
 function saveTimer(){try{if(TIMER)localStorage.setItem('pr-plan-timer',JSON.stringify(TIMER));else localStorage.removeItem('pr-plan-timer')}catch(e){}}
 setInterval(function(){if(!TIMER)return;var s=fmtDur(Date.now()-TIMER.start);$$('[data-timer]').forEach(function(el){el.textContent=s})},1000);
+/* ===== punch clock: clock in now, clock out later, watch the money tick ===== */
+var PUNCH=null;try{PUNCH=JSON.parse(localStorage.getItem('pr-plan-punch')||'null')}catch(e){}
+if(PUNCH&&!(PUNCH.start>0&&['Caf','Walmart','Ariel'].indexOf(PUNCH.job)>=0&&isDate(PUNCH.date)&&isTime(PUNCH.t)))PUNCH=null;
+function savePunch(){try{if(PUNCH)localStorage.setItem('pr-plan-punch',JSON.stringify(PUNCH));else localStorage.removeItem('pr-plan-punch')}catch(e){}}
+function p2(x){return String(x).padStart(2,'0')}
+function clockHM(dt){return p2(dt.getHours())+':'+p2(dt.getMinutes())}
+function punchStart(d){var a=d.date.split('-').map(Number),b=d.t.split(':').map(Number);return new Date(a[0],a[1]-1,a[2],b[0],b[1]).getTime()}
+var punchWkCache=null;
+function punchWk(){
+  if(punchWkCache!==null)return punchWkCache;
+  var r=rule(PUNCH.job),b=d2n(r.base),d=d2n(PUNCH.date),wk=b+7*Math.floor((d-b)/7),key=d+hm(PUNCH.t),tot=0;
+  try{computeShifts(S.shifts.filter(function(x){return !x.planned&&x.job===PUNCH.job})).forEach(function(c){if(c.week===wk&&c.key<key)tot+=c.paid})}catch(e){}
+  return punchWkCache=tot;
+}
+/* What you'd be paid if you clocked out right now. Same rules as computeShifts: break deduction, weekly overtime, bonus hours. */
+function punchLive(now){
+  var r=rule(PUNCH.job),h=Math.max(0,(now-PUNCH.start)/3600000),wk=punchWk();
+  var brk=(num(r.brk)>0&&h>=num(r.brkMin))?num(r.brk):0,paid=Math.max(0,h-brk);
+  var ot=Math.max(0,Math.min(paid,wk+paid-num(r.otAfter)));
+  var bAt=num(r.bonusAt),bH=num(r.bonus),bonus=(bH>0&&bAt>0&&wk+paid>=bAt&&wk<bAt)?bH:0;
+  var gross=num(r.rate)*(paid-ot+num(r.otMult)*ot+bonus);
+  return {h:h,paid:paid,brk:brk,ot:ot,bonus:bonus,wk:wk,gross:gross,th:gross*(1-withheld(r))};
+}
+function liveMoney(v){var s=v.toFixed(5);return '$'+s.slice(0,-3)+'<small>'+s.slice(-3)+'</small>'}
+/* Money from now through the end of today's planned shifts at this job, if you follow through */
+var punchFT=null;
+function followThrough(job){
+  var t=n2d(todayN()),mt=metIds(),pl=S.shifts.filter(function(x){return x.planned&&!mt[x.id]&&x.job===job&&x.date===t}).sort(function(a,b){return a.clockIn<b.clockIn?-1:1});
+  var recs=[],P=PUNCH&&PUNCH.job===job?PUNCH:null,pm=P?hm(P.t)*1440:-1,cur=null;
+  if(P){
+    cur=pl.filter(function(x){var r=rangeOf(x);return pm>=r[0]-90&&pm<r[1]})[0]||null;
+    if(cur)recs.push({id:'ft-now',planned:false,job:job,date:P.date,clockIn:P.t,clockOut:cur.clockOut,mealOut:'',mealIn:'',notes:''});
+    pl.forEach(function(x){if(x!==cur&&rangeOf(x)[0]>pm)recs.push(Object.assign({},x,{id:'ft-'+x.id,planned:false}))});
+  }else pl.forEach(function(x){recs.push(Object.assign({},x,{id:'ft-'+x.id,planned:false}))});
+  if(!recs.length)return null;
+  var ids=recs.map(function(r){return r.id}),o={gross:0,th:0,h:0,end:recs[recs.length-1].clockOut,blocks:recs.length,inBlock:!!cur};
+  computeShifts(S.shifts.filter(function(x){return !x.planned}).concat(recs)).forEach(function(c){if(ids.indexOf(c.id)>=0){o.gross+=c.gross;o.th+=c.th;o.h+=c.paidAll}});
+  return o;
+}
+function punchAt(h){return fmtT(clockHM(new Date(PUNCH.start+h*3600000)))}
+function punchHint(L){
+  var r=rule(PUNCH.job),h=L.h,w=function(t){return svg('warn')+'<span>'+t+'</span>'};
+  if(h>=16)return w('Still clocked in? You started '+fmtD(d2n(PUNCH.date),'wmd')+' at '+fmtT(PUNCH.t)+'. Tap Edit to fix it');
+  if(L.ot>0)return w((PUNCH.job==='Caf'?'Caf overtime now':'Overtime now')+': '+num(r.otMult)+'× pay');
+  var toOT=num(r.otAfter)-L.wk-h;
+  if(toOT>0&&toOT<=1)return w('Overtime starts at '+punchAt(h+toOT)+' ('+hrs(L.wk,1)+' hrs already this week)');
+  if(num(r.brk)>0&&!r.flagMeal){
+    if(h>=num(r.brkMin))return w('Past '+hrs(r.brkMin)+' hrs straight, so '+mins(r.brk)+' is likely taken off. Already counted above');
+    if(h>=num(r.brkMin)-0.75)return w('Clock out for a break before '+punchAt(num(r.brkMin))+', or they may take '+mins(r.brk)+' off');
+  }
+  if(r.flagMeal){
+    if(h>=num(r.brkMin))return w('Took a meal? Add the meal punch when you clock out');
+    if(h>=num(r.brkMin)-0.75)return w('Meal punch due before '+punchAt(num(r.brkMin)));
+  }
+  return '';
+}
+var tickRAF=0,tickHint=0;
+function tickPunch(){
+  tickRAF=0;if(!PUNCH)return;
+  var els=document.querySelectorAll('[data-live]');if(!els.length)return;
+  var now=Date.now(),L=punchLive(now),v={big:liveMoney(L.th),gr:'$'+L.gross.toFixed(5),el:fmtDur(now-PUNCH.start)};
+  if(punchFT&&punchFT.th>0){
+    var met=L.th>=punchFT.th;
+    v.ftg=met?'<b>Plan met!</b> +'+money(L.th-punchFT.th)+' extra so far':'<b>'+money(punchFT.th-L.th)+'</b> more take-home if you stay';
+    v.ftw=Math.min(100,L.th/punchFT.th*100).toFixed(2)+'%';
+    if(met&&!punchFT.hit){punchFT.hit=true;try{confetti()}catch(e){}toast('Shift plan met. Everything now is extra')}
+  }
+  if(now-tickHint>1000){tickHint=now;v.hint=punchHint(L)}
+  for(var i=0;i<els.length;i++){var e=els[i],k=e.getAttribute('data-live'),x=v[k];if(x==null||e._v===x)continue;e._v=x;if(k==='ftw')e.style.width=x;else e.innerHTML=x}
+  tickRAF=requestAnimationFrame(tickPunch);
+}
+function startTicker(){punchWkCache=null;tickHint=0;var hit=punchFT&&punchFT.hit;try{punchFT=PUNCH?followThrough(PUNCH.job):null}catch(e){punchFT=null}
+  if(punchFT){try{punchFT.hit=hit||punchLive(Date.now()).th>=punchFT.th}catch(e){}}if(PUNCH&&!tickRAF)tickRAF=requestAnimationFrame(tickPunch)}
+function punchCard(Tk){
+  if(PUNCH){
+    var L=punchLive(Date.now()),sd=d2n(PUNCH.date);
+    return '<div class="pn-top"><span class="pn-dot"></span>On the clock · '+esc(PUNCH.job)+'<span class="pn-since">since '+(sd===todayN()?'':fmtD(sd,'md')+', ')+fmtT(PUNCH.t)+'</span></div>'+
+      '<div class="pn-money" data-live="big">'+liveMoney(L.th)+'</div>'+
+      '<div class="pn-sub">take-home · <span data-live="el">'+fmtDur(Date.now()-PUNCH.start)+'</span> · <span data-live="gr">$'+L.gross.toFixed(5)+'</span> before tax</div>'+
+      (function(){var F=followThrough(PUNCH.job),r=rule(PUNCH.job);
+        if(!F)return '<div class="pn-ft"><div class="pn-ft-t">Every hour here: <b>+'+money(thr(r))+'</b> take-home <span>· '+money(r.rate)+' before tax</span></div></div>';
+        return '<div class="pn-ft"><div class="pn-ft-t">Follow through to '+fmtT(F.end)+(F.blocks>1?' ('+F.blocks+' shifts)':'')+': <b>'+money(F.th)+'</b> take-home <span>· '+money(F.gross)+' before tax</span></div>'+
+          '<div class="pn-bar"><i data-live="ftw" style="width:'+Math.min(100,L.th/Math.max(F.th,0.01)*100).toFixed(2)+'%"></i></div>'+
+          '<div class="pn-ft-s" data-live="ftg">'+(L.th>=F.th?'<b>Plan met!</b> +'+money(L.th-F.th)+' extra so far':'<b>'+money(F.th-L.th)+'</b> more take-home if you stay')+'</div></div>';
+      })()+
+      '<div class="pn-hint" data-live="hint">'+punchHint(L)+'</div>'+
+      '<div class="pn-btns"><button type="button" class="pn-out" data-act="punch-out">Clock Out</button><button type="button" class="pn-edit" data-act="punch-edit">Edit</button></div>';
+  }
+  var jobs=['Caf'];if(Tk.main)jobs.push(Tk.main);
+  var t=n2d(todayN()),mt=metIds(),pj=S.shifts.filter(function(x){return x.planned&&!mt[x.id]&&x.date===t})[0];
+  if(pj&&jobs.indexOf(pj.job)>0)jobs=[pj.job].concat(jobs.filter(function(j){return j!==pj.job}));
+  var F0=null;try{F0=followThrough(jobs[0])}catch(e){}
+  return '<div class="row">'+tileIcon('timer','--green')+'<div class="row-main"><div class="row-title">Clock In</div><div class="row-sub">'+(F0?esc(jobs[0])+' plan today until '+fmtT(F0.end)+': <b class="g">'+money(F0.th)+'</b> take-home if you follow through':'Starts the clock now. Clock out when you leave.')+'</div></div>'+
+    '<div class="pn-ins">'+jobs.map(function(j){return '<button type="button" class="pill-btn go" data-act="punch-in" data-job="'+esc(j)+'">'+(jobs.length>1?esc(j):'Clock In')+'</button>'}).join('')+'</div></div>';
+}
 function shiftGroups(list){
   var groups=[],gi={};
   list.forEach(function(sh){var key=sh.date+'|'+sh.job;if(!gi[key]){gi[key]={date:sh.date,job:sh.job,items:[]};groups.push(gi[key])}gi[key].items.push(sh)});
@@ -1216,11 +1346,16 @@ function shiftGroups(list){
 function todayItems(){
   var t=todayN(),items=[],St=studyState(),Tk=tracker(),M=moneyState(),pById={};
   Tk.pcalcs.forEach(function(c){pById[c.id]=c});
+  if(PUNCH)items.push({icon:(JOBC[PUNCH.job]||JOBC.Caf)[0],color:'--green',title:'On the clock · '+PUNCH.job,sub:'Since '+fmtT(PUNCH.t)+' · <span data-live="el">'+fmtDur(Date.now()-PUNCH.start)+'</span>',val:'<span data-live="big">'+liveMoney(punchLive(Date.now()).th)+'</span>',act:'tab',attrs:'data-tab="hours"',todo:false});
   if(TIMER)items.push({icon:'timer',color:'--teal',title:'Spanish timer running',sub:actOf(TIMER.act).l,val:'<span data-timer>'+fmtDur(Date.now()-TIMER.start)+'</span>',act:'timer-stop',btn:'Stop',todo:false});
-  var planned=S.shifts.filter(function(s){return s.planned});
+  var planned=S.shifts.filter(function(s){return s.planned&&!Tk.met[s.id]});
+  var nowM=new Date(),nowMin=nowM.getHours()*60+nowM.getMinutes();
   shiftGroups(planned.filter(function(s){return s.date===n2d(t)})).forEach(function(g){
+    if(PUNCH&&PUNCH.job===g.job)return;
     var h=g.items.reduce(function(a,s){return a+(pById[s.id]?pById[s.id].paidAll:0)},0),jc=JOBC[g.job]||JOBC.Caf;
-    items.push({icon:jc[0],color:jc[1],title:g.job+' today',sub:g.items.map(function(s){return fmtT(s.clockIn)+' – '+fmtT(s.clockOut)}).join(', ')+' · '+hrs(h,1)+' hrs planned',act:'confirm-shift',attrs:'data-id="'+esc(g.items[0].id)+'"',btn:'Log It',todo:true});
+    var endMin=Math.max.apply(null,g.items.map(function(s){return rangeOf(s)[1]})),ahead=!PUNCH&&nowMin<endMin;
+    var gth=g.items.reduce(function(a,s){return a+(pById[s.id]?pById[s.id].th:0)},0);
+    items.push({icon:jc[0],color:jc[1],title:g.job+' today',sub:g.items.map(function(s){return fmtT(s.clockIn)+' – '+fmtT(s.clockOut)}).join(', ')+' · <b class="g">'+money(gth)+'</b> if you follow through',act:ahead?'punch-in':'confirm-shift',attrs:ahead?'data-job="'+esc(g.job)+'"':'data-id="'+esc(g.items[0].id)+'"',btn:ahead?'Clock In':'Log It',todo:true});
   });
   var late=shiftGroups(planned.filter(function(s){return d2n(s.date)<t})).length;
   if(late)items.push({icon:'warn',color:'--orange',title:late+' planned day'+(late===1?'':'s')+' to confirm',sub:'Did you work '+(late===1?'it':'them')+'? Log or delete in Hours',act:'tab',attrs:'data-tab="hours"',todo:true});
@@ -1431,7 +1566,7 @@ hours:function(){
   var byId={};Tk.calcs.forEach(function(c){byId[c.id]=c});
   var list=S.shifts.filter(function(s){return !s.planned}).sort(function(a,b){return (b.date+b.clockIn)<(a.date+a.clockIn)?-1:1});
   var pBy={};Tk.pcalcs.forEach(function(c){pBy[c.id]=c});
-  var tN=todayN(),pg=shiftGroups(S.shifts.filter(function(s){return s.planned}).sort(function(a,b){return (a.date+a.clockIn)<(b.date+b.clockIn)?-1:1}));
+  var tN=todayN(),pg=shiftGroups(S.shifts.filter(function(s){return s.planned&&!Tk.met[s.id]}).sort(function(a,b){return (a.date+a.clockIn)<(b.date+b.clockIn)?-1:1}));
   var plannedRows=pg.map(function(g){
     var d=d2n(g.date),jc=JOBC[g.job]||JOBC.Caf,hh=g.items.reduce(function(a,s){return a+(pBy[s.id]?pBy[s.id].paidAll:0)},0),past=d<tN,isT=d===tN,id=esc(g.items[0].id);
     return '<div class="swipe hi"><div class="swipe-acts"><button type="button" class="sa red" data-act="del-shift" data-ids="'+esc(g.items.map(function(s){return s.id}).join(','))+'">'+svg('trash')+'Delete</button></div>'+
@@ -1439,9 +1574,11 @@ hours:function(){
       '<div class="row-main"><div class="row-title">'+fmtD(d,'wmd')+'<span class="job-tag">'+esc(g.job)+'</span>'+(isT?' <span class="mini-pill now">Today</span>':past?' <span class="mini-pill warn">Confirm</span>':'')+'</div><div class="row-sub">'+g.items.map(function(s){return fmtT(s.clockIn)+' – '+fmtT(s.clockOut)}).join(', ')+' · '+hrs(hh,1)+' hrs planned</div></div>'+
       (isT||past?'<button type="button" class="pill-btn" data-act="confirm-shift" data-id="'+id+'">Log It</button>':'<div class="row-val">'+hrs(hh,1)+' hrs</div>')+'</div></div>';
   }).join('');
-  var hasFuture=S.shifts.some(function(s){return s.planned&&d2n(s.date)>=tN});
+  var hasFuture=S.shifts.some(function(s){return s.planned&&!Tk.met[s.id]&&d2n(s.date)>=tN});
+  var ftAll=Tk.pcalcs.reduce(function(a,c){return c.d>=tN?{th:a.th+c.th,h:a.h+c.paidAll}:a},{th:0,h:0});
+  var plBy={};S.shifts.forEach(function(x){if(x.planned&&Tk.met[x.id]){var k=x.date+'|'+x.job;(plBy[k]=plBy[k]||[]).push(x)}});
   var plannedSec=sec('Planned',plannedRows||'<button type="button" class="row action tap" data-act="plan-shift">'+svg('plus')+'&nbsp;Plan Shifts Ahead</button>',
-      pg.length?'Planned shifts fill the rings in a lighter color. After you work one, tap Log It and fix the times.':'Plan your caf days here, then just show up and offer to help.',
+      pg.length?(ftAll.th>0?'Follow through on these and you’ll take home about <b class="g">'+money(ftAll.th,0)+'</b> ('+hrs(ftAll.h,1)+' hrs). ':'')+'They fill the rings in a lighter color. Clock in when you start, or tap Log It after.':'Plan your caf days here, then just show up and offer to help.',
       {hRight:pg.length?'<button type="button" class="hbtn" data-act="plan-shift">Plan</button>':''})+
     (hasFuture?sec('',vrow('Add Planned Shifts to Calendar',null,'Your calendar alerts you an hour before each one',{act:'cal-shifts',icon:'calendar',color:'--red',chev:false}),'',{tight:true}):'');
   var groups=[],gi={};
@@ -1452,7 +1589,7 @@ hours:function(){
     var notes=items.map(function(s){return s.notes}).filter(Boolean).join(' · ');
     return '<div class="swipe hi"><div class="swipe-acts"><button type="button" class="sa red" data-act="del-shift" data-ids="'+esc(items.map(function(s){return s.id}).join(','))+'">'+svg('trash')+'Delete</button></div>'+
       '<div class="row swipe-row tap" data-act="edit-shift" data-id="'+esc(items[0].id)+'" role="button" tabindex="0">'+tileIcon(jc[0],jc[1])+
-      '<div class="row-main"><div class="row-title">'+fmtD(d2n(g.date),'wmd')+'<span class="job-tag">'+esc(g.job)+(items.length>1?' · '+items.length+' shifts':'')+'</span></div><div class="row-sub">'+items.map(function(sh){return fmtT(sh.clockIn)+' – '+fmtT(sh.clockOut)}).join(', ')+(t.meal?' · '+mins(t.meal)+' meal':'')+(t.brk?' · '+mins(t.brk)+' likely deducted':'')+(t.bonus?' · +'+hrs(t.bonus)+' bonus hrs':'')+(notes?' · '+esc(notes):'')+'</div>'+
+      '<div class="row-main"><div class="row-title">'+fmtD(d2n(g.date),'wmd')+'<span class="job-tag">'+esc(g.job)+(items.length>1?' · '+items.length+' shifts':'')+'</span></div><div class="row-sub">'+items.map(function(sh){return fmtT(sh.clockIn)+' – '+fmtT(sh.clockOut)}).join(', ')+(t.meal?' · '+mins(t.meal)+' meal':'')+(t.brk?' · '+mins(t.brk)+' likely deducted':'')+(t.bonus?' · +'+hrs(t.bonus)+' bonus hrs':'')+(plBy[g.date+'|'+g.job]?' · planned '+plBy[g.date+'|'+g.job].sort(function(a,b){return a.clockIn<b.clockIn?-1:1}).map(function(x){return fmtT(x.clockIn)+' – '+fmtT(x.clockOut)}).join(', '):'')+(notes?' · '+esc(notes):'')+'</div>'+
       (check?'<div class="row-warn">'+svg('warn')+esc(check)+'</div>':'')+'</div>'+
       '<div class="row-val two"><b>'+hrs(t.paid)+' hrs</b><span>'+money(t.th)+'</span></div></div></div>';
   }).join(''):'<div class="empty">'+svg('hours')+'<b>No Shifts Yet</b><span>Type the exact punches from your timecard. Took a break? Log each part as its own shift. Paid hours, overtime and take-home come from your Pay Rules.</span><button type="button" class="cap-btn" data-act="add-shift">Log a Shift</button></div>';
@@ -1464,7 +1601,7 @@ hours:function(){
       '<div class="row-main"><div class="row-title">'+esc(e.source)+'</div><div class="row-sub">'+fmtD(d2n(e.date),'mdy')+(e.notes?' · '+esc(e.notes):'')+'</div></div><div class="row-val g">+'+money(e.amount)+'</div></div></div>';
   }).join(''):'<button type="button" class="row action tap" data-act="add-extra">Add Extra Money</button>';
   var noPlan=Tk.chosen?'':sec('',vrow('Set Up Your Plan',null,'Hours count toward the plan you pick. Until then they use '+esc(Tk.c.label)+'.',{act:'wizard',icon:'sparkles',color:'--tint'}),'',{tight:true});
-  var body=noPlan+'<section class="sec tight"><div class="group rings'+(M?'':' one')+'">'+rings+'</div><div class="sec-f">Counting toward '+(Tk.chosen?'your plan, ':'')+esc(Tk.c.label)+'. Caf from '+fmtD(C.from,'md')+' to '+fmtD(C.through,'md')+(M?'; '+Tk.main+' '+fmtD(M.from,'md')+' to '+fmtD(M.through,'md'):'')+'.</div></section>'+
+  var body=noPlan+sec('',punchCard(Tk),'',{cls:PUNCH?'punch':'',tight:true})+'<section class="sec tight"><div class="group rings'+(M?'':' one')+'">'+rings+'</div><div class="sec-f">Counting toward '+(Tk.chosen?'your plan, ':'')+esc(Tk.c.label)+'. Caf from '+fmtD(C.from,'md')+' to '+fmtD(C.through,'md')+(M?'; '+Tk.main+' '+fmtD(M.from,'md')+' to '+fmtD(M.through,'md'):'')+'.</div></section>'+
     sec('This workweek',week)+
     plannedSec+
     sec('Shifts',shifts,groups.length?'Each row is one day at one job. Swipe left to delete it; tap to edit or add a shift.':'',{hRight:groups.length?'<span>'+groups.length+' day'+(groups.length===1?'':'s')+'</span>':''})+
@@ -1681,7 +1818,7 @@ function renderEntry(entry,stack){
 function isEditing(){var a=document.activeElement;return !!(a&&app.contains(a)&&((a.tagName==='INPUT'&&['date','time','checkbox'].indexOf(a.type)<0)||a.tagName==='TEXTAREA'))}
 function render(){
   var st=stacks[curTab];renderEntry(st[st.length-1],st);
-  afterRender();checkGoals();
+  afterRender();checkGoals();startTicker();
   try{updateBadge(todayItems().filter(function(x){return x.todo}).length)}catch(e){}
 }
 function requestRender(){if(isEditing()){pendingRender=true;return}pendingRender=false;render()}
@@ -1823,17 +1960,29 @@ var SHEETS={
     }
   },
   shift:{
-    title:function(d){var e=d.origIds&&d.origIds.length;return d.planned?(e?'Edit Planned Shifts':'Plan Shifts'):d.confirming?'Log Worked Shifts':e?'Edit Shifts':'Log Shifts'},
-    hook:function(d,p){if(p==='date'&&isDate(d.date)&&d2n(d.date)>todayN())d.planned=true},
+    title:function(d){var e=d.origIds&&d.origIds.length,op=openBlock(d);if(d.fromPunch)return op?'On the Clock':'Clock Out';if(op&&!e)return 'Clock In';return d.planned?(e?'Edit Planned Shifts':'Plan Shifts'):d.confirming?'Log Worked Shifts':e?'Edit Shifts':'Log Shifts'},
+    hook:function(d,p){
+      if(p==='date'&&isDate(d.date)&&d2n(d.date)>todayN())d.planned=true;
+      if(p==='planned'&&d.planned)d.blocks.forEach(function(b){b.open=false});
+      var m=/^blocks\.(\d+)\.open$/.exec(p);
+      if(m){var b=d.blocks[+m[1]];if(b&&!b.open&&!isTime(b.clockOut))b.clockOut=clockHM(new Date(Math.round(Date.now()/60000)*60000));if(b&&b.open)d.blocks.forEach(function(o,k){if(k!==+m[1])o.open=false})}
+    },
     blockIssue:function(d){
       var bl=d.blocks||[];if(!bl.length)return 'Add a shift';
       for(var i=0;i<bl.length;i++){
         var b=bl[i];
+        if(b.open){
+          if(i!==bl.length-1)return 'Only the last shift can still be on the clock';
+          if(!isTime(b.clockIn))return 'Set the clock-in time';
+          if(!canOpen(d,i))return d.planned?'Planned shifts can’t be on the clock':'You’re already on the clock at '+PUNCH.job;
+          if(isDate(d.date)&&punchStart({date:d.date,t:b.clockIn})>Date.now()+60000)return 'That clock-in is in the future';
+          continue;
+        }
         if(!isTime(b.clockIn)||!isTime(b.clockOut))return 'Set both times';
         if(b.clockIn===b.clockOut)return 'Clock out matches clock in'+(bl.length>1?' on shift '+(i+1):'');
         if(d.job!=='Caf'&&b.meal&&(!isTime(b.mealOut)||!isTime(b.mealIn)))return 'Set both meal times';
       }
-      var r=bl.map(function(b){var s=hm(b.clockIn)*1440,e=hm(b.clockOut)*1440;return [s,e<s?e+1440:e]}).sort(function(a,b){return a[0]-b[0]});
+      var r=bl.map(function(b){var s=hm(b.clockIn)*1440,e=b.open?s+1:hm(b.clockOut)*1440;return [s,e<s?e+1440:e]}).sort(function(a,b){return a[0]-b[0]});
       for(var j=1;j<r.length;j++)if(r[j][0]<r[j-1][1])return 'Shifts overlap. Check the times';
       return '';
     },
@@ -1842,8 +1991,11 @@ var SHEETS={
       var isC=d.job==='Caf',issue=SHEETS.shift.blockIssue(d),many=d.blocks.length>1,preview='';
       var blocks=d.blocks.map(function(b,i){
         var P='draft.blocks.'+i;
-        return sec(many?'Shift '+(i+1):'',pillRow(P+'.clockIn','time','Clock in')+pillRow(P+'.clockOut','time','Clock out')+
-          (isC?'':toggleRow(P+'.meal','Meal punch','Clocked out for a meal')+(b.meal?pillRow(P+'.mealOut','time','Meal out')+pillRow(P+'.mealIn','time','Meal in'):'')),
+        var co=canOpen(d,i)||b.open;
+        return sec(many?'Shift '+(i+1):'',pillRow(P+'.clockIn','time','Clock in')+
+          (co?toggleRow(P+'.open','Still on the clock',b.open?'Counts live until you clock out':'Turn on if you haven’t clocked out yet'):'')+
+          (b.open?'':pillRow(P+'.clockOut','time','Clock out'))+
+          (isC||b.open?'':toggleRow(P+'.meal','Meal punch','Clocked out for a meal')+(b.meal?pillRow(P+'.mealOut','time','Meal out')+pillRow(P+'.mealIn','time','Meal in'):'')),
           '',{tight:i>0,hRight:many?'<button type="button" class="hbtn red" data-act="shift-del-block" data-i="'+i+'">Remove</button>':''});
       }).join('');
       var add=sec('','<button type="button" class="row action tap" data-act="shift-add-block">'+svg('plus')+'&nbsp;Add Another Shift This Day</button>',
@@ -1852,7 +2004,7 @@ var SHEETS={
         :'Walmart: use Meal punch for a meal clock-out (30 min on 6+ hr shifts, up to 1 hr on longer ones). Paid 15-min breaks aren’t logged.');
       if(!issue&&isDate(d.date)){
         var recs=draftShifts(d),ids=recs.map(function(r){return r.id}),orig=d.origIds||[];
-        var list=S.shifts.filter(function(s){return orig.indexOf(s.id)<0&&(d.planned||!s.planned)}).concat(recs);
+        var mt=metIds(),list=S.shifts.filter(function(s){return orig.indexOf(s.id)<0&&!mt[s.id]&&(d.planned||!s.planned)}).concat(recs);
         var cs=computeShifts(list).filter(function(x){return ids.indexOf(x.id)>=0}).sort(function(a,b){return a.key-b.key});
         var tot={paid:0,ot:0,gross:0,th:0},checks=[];
         var rows=cs.map(function(c,i){
@@ -1860,10 +2012,12 @@ var SHEETS={
           return vrow((many?'Shift '+(i+1)+' · ':'')+fmtT(c.sh.clockIn)+' – '+fmtT(c.sh.clockOut),hrs(c.paidAll)+' hrs',
             c.brk?mins(c.brk)+' likely deducted ('+hrs(c.span)+' hrs straight)':c.meal?mins(c.meal)+' meal':c.bonus?'+'+hrs(c.bonus)+' bonus hrs (36-for-40)':'');
         }).join('');
-        preview=sec('Estimate',rows+
+        var ob=openBlock(d);
+        if(ob)rows+=vrow((many?'Shift '+d.blocks.length+' · ':'')+'Since '+fmtT(ob.clockIn),'Live','Counting until you clock out');
+        preview=sec('Estimate',rows+(cs.length?
           (many?vrow('Paid hours this day',hrs(tot.paid)+' hrs','',{strong:true}):'')+
           (tot.ot>0?vrow('Overtime',hrs(tot.ot)+' hrs'):'')+
-          vrow('Gross pay',money(tot.gross))+vrow('Est. take-home',money(tot.th),'',{strong:true})+
+          vrow('Gross pay',money(tot.gross))+vrow('Est. take-home',money(tot.th),'',{strong:true}):'')+
           checks.map(function(m){return '<div class="row"><div class="row-main"><div class="row-warn" style="margin:0">'+svg('warn')+esc(m)+'</div></div></div>'}).join(''),
           'Estimates use your Pay Rules.');
       }else if(issue&&issue!=='Set both times'&&issue!=='Set both meal times'){
@@ -1874,11 +2028,24 @@ var SHEETS={
             ?'<div class="row"><div class="row-main"><div class="row-title">Planned</div><div class="row-sub">Future days are plans. Log it once you’ve worked it.</div></div><span class="status g">'+svg('check')+'Planned</span></div>'
             :toggleRow('draft.planned','Planned (not worked yet)',d.planned?'Fills the ring in a lighter color until you log it':'Off means you worked it')))+blocks+add+
         sec('','<div class="row"><input class="textin" id="f-draft-notes" data-bind="draft.notes" data-kind="text" placeholder="Notes" value="'+esc(d.notes)+'" aria-label="Notes"></div>')+
-        preview+(d.origIds&&d.origIds.length?sec('','<button type="button" class="row action red tap" data-act="sheet-delete">'+(d.planned?'Delete Plan':d.origIds.length>1?'Delete These Shifts':'Delete Shift')+'</button>'):'');
+        preview+(d.fromPunch?sec('','<button type="button" class="row action red tap" data-act="punch-discard">Discard Clock-In</button>','Removes the clock-in only. Nothing else changes.'):'')+(d.origIds&&d.origIds.length&&!d.fromPunch?sec('','<button type="button" class="row action red tap" data-act="sheet-delete">'+(d.planned?'Delete Plan':d.origIds.length>1?'Delete These Shifts':'Delete Shift')+'</button>'):'');
     },
     save:function(d){
       var orig=d.origIds||[],recs=draftShifts(d).map(function(r){if(r.id.indexOf('new-')===0)r.id=uid();return r});
       S.shifts=S.shifts.filter(function(s){return orig.indexOf(s.id)<0}).concat(recs);
+      var ob=openBlock(d);
+      if(ob){
+        PUNCH={job:d.job,date:d.date,t:ob.clockIn,start:punchStart({date:d.date,t:ob.clockIn})};savePunch();
+        S.shifts.sort(function(a,b){return (a.date+a.clockIn)<(b.date+b.clockIn)?-1:1});touch('shifts');
+        toast((d.fromPunch?'Clock-in set: ':'On the clock since ')+fmtT(ob.clockIn));return;
+      }
+      if(d.fromPunch){
+        S.shifts.sort(function(a,b){return (a.date+a.clockIn)<(b.date+b.clockIn)?-1:1});
+        var pr=recs.filter(function(r){return r.clockIn===d.punchT})[0]||recs[recs.length-1],pc=null;
+        try{pc=computeShifts(S.shifts.filter(function(s){return !s.planned})).filter(function(c){return c.id===pr.id})[0]}catch(e){}
+        PUNCH=null;savePunch();touch('shifts');
+        toast(pc?'Clocked out · +'+money(pc.th)+' take-home':'Clocked out');return;
+      }
       S.shifts.sort(function(a,b){return (a.date+a.clockIn)<(b.date+b.clockIn)?-1:1});
       touch('shifts');toast(d.planned?(orig.length?'Plan updated':'Planned '+recs.length+' shift'+(recs.length===1?'':'s')):d.confirming?'Logged. Nice work':orig.length?'Shifts updated':recs.length>1?recs.length+' shifts logged':'Shift logged');
     },
@@ -2164,8 +2331,18 @@ SHEETS.timerpick={
   right:function(){return '<span style="width:44px"></span>'},
   body:function(){return sec('','<div class="cats">'+ACTS.map(function(a){return '<button type="button" class="cat" data-act="timer-go" data-a="'+a.k+'"><span class="cat-ic" style="--c:var('+a.c+')">'+svg(a.i)+'</span><span class="cat-l">'+a.l+'</span></button>'}).join('')+'</div>','What are you doing? The timer keeps running if you close the app, and you can fix the minutes when you stop.',{tight:true})}
 };
-function draftShifts(d){if(!d._tmp)d._tmp=uid();return d.blocks.map(function(b,i){var meal=d.job!=='Caf'&&b.meal;return {planned:!!d.planned,id:b.id||('new-'+d._tmp+'-'+i),job:d.job,date:d.date,clockIn:b.clockIn,mealOut:meal?b.mealOut:'',mealIn:meal?b.mealIn:'',clockOut:b.clockOut,notes:i===0?String(d.notes||''):''}})}
-function dayGroup(id){var s=S.shifts.filter(function(x){return x.id===id})[0];if(!s)return null;return S.shifts.filter(function(x){return x.date===s.date&&x.job===s.job&&!!x.planned===!!s.planned}).sort(function(a,b){return a.clockIn<b.clockIn?-1:1})}
+/* the day's real shifts at the punch's job, plus the live one at the end */
+function punchDraft(open){
+  var P=PUNCH,g=S.shifts.filter(function(x){return !x.planned&&x.job===P.job&&x.date===P.date}).sort(function(a,b){return a.clockIn<b.clockIn?-1:1});
+  var d=g.length?groupDraft(g):{planned:false,job:P.job,date:P.date,blocks:[],notes:'',origIds:[]};
+  d.planned=false;d.fromPunch=true;d.punchT=P.t;
+  d.blocks.push({clockIn:P.t,clockOut:clockHM(new Date(Math.round(Date.now()/60000)*60000)),open:!!open,meal:false,mealOut:'',mealIn:''});
+  return d;
+}
+function openBlock(d){var b=(d.blocks||[]).filter(function(x){return x.open})[0];return b||null}
+function canOpen(d,i){return !d.planned&&i===d.blocks.length-1&&isDate(d.date)&&d2n(d.date)>=todayN()-1&&d2n(d.date)<=todayN()&&(!PUNCH||!!d.fromPunch)}
+function draftShifts(d){if(!d._tmp)d._tmp=uid();return d.blocks.filter(function(b){return !b.open}).map(function(b,i){var meal=d.job!=='Caf'&&b.meal;return {planned:!!d.planned,id:b.id||('new-'+d._tmp+'-'+i),job:d.job,date:d.date,clockIn:b.clockIn,mealOut:meal?b.mealOut:'',mealIn:meal?b.mealIn:'',clockOut:b.clockOut,notes:i===0?String(d.notes||''):''}})}
+function dayGroup(id){var s=S.shifts.filter(function(x){return x.id===id})[0];if(!s)return null;var mt=s.planned?metIds():{};return S.shifts.filter(function(x){return x.date===s.date&&x.job===s.job&&!!x.planned===!!s.planned&&!!mt[x.id]===!!mt[s.id]}).sort(function(a,b){return a.clockIn<b.clockIn?-1:1})}
 function groupDraft(g){return {planned:!!g[0].planned,job:g[0].job,date:g[0].date,origIds:g.map(function(x){return x.id}),notes:g.map(function(x){return x.notes}).filter(Boolean).join(' · '),
   blocks:g.map(function(x){return {id:x.id,clockIn:x.clockIn,clockOut:x.clockOut,meal:!!(x.mealOut||x.mealIn),mealOut:x.mealOut,mealIn:x.mealIn}})}}
 function openSheet(kind,draft){
@@ -2283,6 +2460,11 @@ var A={
   'edit-study':function(t){var e=S.study.filter(function(x){return x.id===t.dataset.id})[0];if(e)openSheet('study',clone(e))},
   'del-study':function(t){delItem('study',t.dataset.id,'Deleted');render()},
   'timer-start':function(){openSheet('timerpick',{})},
+  'punch-in':function(t){if(PUNCH){toast('Already on the clock');return}var now=new Date(),j=t.dataset.job||'Caf';if(['Caf','Walmart','Ariel'].indexOf(j)<0)j='Caf';
+    var rm=new Date(Math.round(now.getTime()/60000)*60000);PUNCH={job:j,start:rm.getTime(),date:n2d(todayN()),t:clockHM(rm)};savePunch();render();toast('Clocked in at '+fmtT(PUNCH.t))},
+  'punch-edit':function(){if(PUNCH)openSheet('shift',punchDraft(true))},
+  'punch-discard':function(){PUNCH=null;savePunch();closeSheet();render();toast('Clock-in discarded')},
+  'punch-out':function(){if(PUNCH)openSheet('shift',punchDraft(false))},
   'timer-go':function(t){TIMER={act:t.dataset.a,start:Date.now()};saveTimer();closeSheet();render();toast('Timer started')},
   'timer-stop':function(){if(!TIMER)return;openSheet('study',{id:null,date:n2d(todayN()),act:TIMER.act,mins:Math.max(1,Math.round((Date.now()-TIMER.start)/60000)),units:TIMER.act==='babbel'?1:0,notes:'',fromTimer:true})},
   focus:function(t){var el=document.getElementById(t.dataset.f);if(el){el.scrollIntoView({block:'center',behavior:'smooth'});setTimeout(function(){try{el.focus()}catch(e){}},350)}},
@@ -2292,7 +2474,7 @@ var A={
       title:'Spanish: Babbel unit + practice',note:'Minimum day: '+num(G.minMins)+' min or one Babbel unit. Log it in PR Plan.',alarm:'PT0M'}]));
   },
   'cal-shifts':function(){
-    var t=todayN(),ev=S.shifts.filter(function(s){return s.planned&&d2n(s.date)>=t}).map(function(s){
+    var t=todayN(),mt=metIds(),ev=S.shifts.filter(function(s){return s.planned&&!mt[s.id]&&d2n(s.date)>=t}).map(function(s){
       return {uid:s.id,start:icsDT(s.date,s.clockIn),end:icsDT(s.clockOut<s.clockIn?n2d(d2n(s.date)+1):s.date,s.clockOut),title:s.job+' shift',note:'Planned in PR Plan'+(s.notes?': '+s.notes:''),alarm:'-PT60M'}});
     if(!ev.length){toast('No upcoming planned shifts');return}
     openICS('planned-shifts.ics',icsWrap(ev));
@@ -2306,7 +2488,7 @@ var A={
     var last=S.shifts.filter(function(s){return s.planned}).sort(function(a,b){return (b.date+b.clockIn)<(a.date+a.clockIn)?-1:1})[0];
     openSheet('shift',{job:last?last.job:'Caf',date:n2d(Math.max(todayN()+1,last?d2n(last.date)+1:0)),blocks:[{clockIn:last?last.clockIn:'12:00',clockOut:last?last.clockOut:'21:00',meal:false,mealOut:'',mealIn:''}],notes:'',origIds:[],planned:true});
   },
-  'confirm-shift':function(t){var g=dayGroup(t.dataset.id);if(!g)return;var d=groupDraft(g);d.planned=false;d.confirming=true;openSheet('shift',d)},
+  'confirm-shift':function(t){var g=dayGroup(t.dataset.id);if(!g)return;var d=groupDraft(g);d.planned=false;d.confirming=true;d.origIds=[];d.blocks.forEach(function(b){delete b.id});openSheet('shift',d)},
   'add-expense':function(t){openSheet('expense',{id:null,date:n2d(todayN()),cat:t&&t.dataset&&CATMAP[t.dataset.cat]?t.dataset.cat:'',amount:'',notes:''});var a=$('#f-draft-amount');if(a)try{a.focus()}catch(e){}},
   'edit-expense':function(t){var e=S.expenses.filter(function(x){return x.id===t.dataset.id})[0];if(e)openSheet('expense',clone(e))},
   'del-expense':function(t){delItem('expenses',t.dataset.id,'Expense deleted');render()},
@@ -2348,7 +2530,7 @@ var A={
   },
   'edit-shift':function(t){var g=dayGroup(t.dataset.id);if(g)openSheet('shift',groupDraft(g))},
   'shift-add-block':function(){
-    var d=sheet&&sheet.draft;if(!d)return;var l=d.blocks[d.blocks.length-1],s=l&&isTime(l.clockOut)?Math.round(hm(l.clockOut)*1440)+30:540;
+    var d=sheet&&sheet.draft;if(!d)return;var l=d.blocks[d.blocks.length-1];if(l&&l.open){l.open=false;if(!isTime(l.clockOut))l.clockOut=clockHM(new Date())}var s=l&&isTime(l.clockOut)?Math.round(hm(l.clockOut)*1440)+30:540;
     d.blocks.push({clockIn:hhmm(s),clockOut:hhmm(s+240),meal:false,mealOut:'',mealIn:''});renderSheet();
     setTimeout(function(){var sc=$('.sheet-scroll'),secs=$$('.sheet-scroll .sec'),el=secs[d.blocks.length];if(sc&&el)sc.scrollTo({top:Math.max(0,el.offsetTop-80),behavior:'smooth'})},30);
   },
