@@ -837,7 +837,7 @@ function applyDoc(k,data){
     if(S.plan&&isDate(pl.setAt))S.plan.setAt=pl.setAt;
   }else if(k==='shifts'){
     S.shifts=(Array.isArray(data.items)?data.items:[]).filter(function(s){return s&&isDate(s.date)&&isTime(s.clockIn)&&isTime(s.clockOut)}).map(function(s){
-      return {planned:!!s.planned,id:String(s.id||uid()),job:s.job==='Walmart'||s.job==='Ariel'?s.job:'Caf',date:s.date,clockIn:s.clockIn,mealOut:isTime(s.mealOut)?s.mealOut:'',mealIn:isTime(s.mealIn)?s.mealIn:'',clockOut:s.clockOut,notes:String(s.notes||'')}});
+      return {planned:!!s.planned,id:String(s.id||uid()),job:s.job==='Walmart'||s.job==='Ariel'?s.job:'Caf',date:s.date,clockIn:s.clockIn,mealOut:isTime(s.mealOut)?s.mealOut:'',mealIn:isTime(s.mealIn)?s.mealIn:'',clockOut:s.clockOut,notes:String(s.notes||''),brkOv:s.brkOv==='on'||s.brkOv==='off'?s.brkOv:''}});
   }else if(k==='extra'){
     S.extra=(Array.isArray(data.items)?data.items:[]).filter(function(e){return e&&isDate(e.date)}).map(function(e){
       return {id:String(e.id||uid()),date:e.date,source:['eBay sale','Birthday money','Other'].indexOf(e.source)>=0?e.source:'Other',amount:num(e.amount),notes:String(e.notes||''),at:num(e.at)}});
@@ -945,7 +945,7 @@ function computeShifts(list){
     var r=rule(sh.job),rm=num(r.round)/1440,d=d2n(sh.date);
     var span=r4(mod1(mround(hm(sh.clockOut),rm)-mround(hm(sh.clockIn),rm))*24);
     var meal=(sh.mealOut&&sh.mealIn)?r4(mod1(mround(hm(sh.mealIn),rm)-mround(hm(sh.mealOut),rm))*24):0;
-    var brk=(meal===0&&span>=num(r.brkMin))?num(r.brk):0;
+    var brk=sh.brkOv==='off'?0:sh.brkOv==='on'?(num(r.brk)>0?num(r.brk):0.5):(meal===0&&span>=num(r.brkMin))?num(r.brk):0;
     var paid=Math.max(0,span-meal-brk);
     var b=d2n(r.base),len=num(r.len)||14;
     return {id:sh.id,sh:sh,r:r,d:d,span:span,meal:meal,brk:brk,paid:paid,week:b+7*Math.floor((d-b)/7),period:b+len*Math.floor((d-b)/len),key:d+hm(sh.clockIn)};
@@ -1299,7 +1299,7 @@ function punchWk(){
 /* What you'd be paid if you clocked out right now. Same rules as computeShifts: break deduction, weekly overtime, bonus hours. */
 function punchLive(now){
   var r=rule(PUNCH.job),h=Math.max(0,(now-PUNCH.start)/3600000),wk=punchWk();
-  var brk=(num(r.brk)>0&&h>=num(r.brkMin))?num(r.brk):0,paid=Math.max(0,h-brk);
+  var ov=PUNCH.brkOv,brk=ov==='off'?0:ov==='on'?(num(r.brk)>0?num(r.brk):0.5):(num(r.brk)>0&&h>=num(r.brkMin))?num(r.brk):0,paid=Math.max(0,h-brk);
   var ot=Math.max(0,Math.min(paid,wk+paid-num(r.otAfter)));
   var bAt=num(r.bonusAt),bH=num(r.bonus),bonus=(bH>0&&bAt>0&&wk+paid>=bAt&&wk<bAt)?bH:0;
   var gross=num(r.rate)*(paid-ot+num(r.otMult)*ot+bonus);
@@ -1329,8 +1329,9 @@ function punchHint(L){
   if(L.ot>0)return w('Overtime now: '+num(r.otMult)+'× pay');
   var toOT=num(r.otAfter)-L.wk-h;
   if(toOT>0&&toOT<=1)return w('Overtime starts at '+punchAt(h+toOT));
-  if(num(r.brk)>0&&!r.flagMeal){
-    if(h>=num(r.brkMin))return w('Past '+hrs(r.brkMin)+' hrs: '+mins(r.brk)+' break taken off (counted)');
+  if(PUNCH.brkOv==='off'&&h>=num(r.brkMin))return w('No break deduction (you said you took a break)');
+  if(num(r.brk)>0&&!r.flagMeal&&PUNCH.brkOv!=='off'){
+    if(h>=num(r.brkMin))return w('Past '+hrs(r.brkMin)+' hrs: '+mins(r.brk)+' break taken off (counted). Tap Edit if you took a break');
     if(h>=num(r.brkMin)-0.75)return w('Take a break by '+punchAt(num(r.brkMin))+' or '+mins(r.brk)+' comes off');
   }
   if(r.flagMeal){
@@ -1731,7 +1732,7 @@ hours:function(){
     var notes=items.map(function(s){return s.notes}).filter(Boolean).join(' · ');
     return '<div class="swipe hi"><div class="swipe-acts"><button type="button" class="sa red" data-act="del-shift" data-ids="'+esc(items.map(function(s){return s.id}).join(','))+'">'+svg('trash')+'Delete</button></div>'+
       '<div class="row swipe-row tap" data-act="edit-shift" data-id="'+esc(items[0].id)+'" role="button" tabindex="0">'+tileIcon(jc[0],jc[1])+
-      '<div class="row-main"><div class="row-title">'+fmtD(d2n(g.date),'wmd')+'<span class="job-tag">'+esc(g.job)+(items.length>1?' · '+items.length+' shifts':'')+'</span></div><div class="row-sub">'+items.map(function(sh){return fmtT(sh.clockIn)+' – '+fmtT(sh.clockOut)}).join(', ')+(t.meal?' · '+mins(t.meal)+' meal':'')+(t.brk?' · '+mins(t.brk)+' likely deducted':'')+(t.bonus?' · +'+hrs(t.bonus)+' bonus hrs':'')+(plBy[g.date+'|'+g.job]?' · planned '+plBy[g.date+'|'+g.job].sort(function(a,b){return a.clockIn<b.clockIn?-1:1}).map(function(x){return fmtT(x.clockIn)+' – '+fmtT(x.clockOut)}).join(', '):'')+(notes?' · '+esc(notes):'')+'</div>'+
+      '<div class="row-main"><div class="row-title">'+fmtD(d2n(g.date),'wmd')+'<span class="job-tag">'+esc(g.job)+(items.length>1?' · '+items.length+' shifts':'')+'</span></div><div class="row-sub">'+items.map(function(sh){return fmtT(sh.clockIn)+' – '+fmtT(sh.clockOut)}).join(', ')+(t.meal?' · '+mins(t.meal)+' meal':'')+(t.brk?' · '+mins(t.brk)+' likely deducted':'')+(t.bonus?' · +'+hrs(t.bonus)+' bonus hrs':'')+(g.items.some(function(x){return x.brkOv==='off'})?' · no break deduction':'')+(plBy[g.date+'|'+g.job]?' · planned '+plBy[g.date+'|'+g.job].sort(function(a,b){return a.clockIn<b.clockIn?-1:1}).map(function(x){return fmtT(x.clockIn)+' – '+fmtT(x.clockOut)}).join(', '):'')+(notes?' · '+esc(notes):'')+'</div>'+
       (check?'<div class="row-warn">'+svg('warn')+esc(check)+'</div>':'')+'</div>'+
       '<div class="row-val two"><b>'+hrs(t.paid)+' hrs</b><span>'+money(t.th)+'</span></div></div></div>';
   }).join(''):'<div class="empty">'+svg('hours')+'<b>No Shifts Yet</b><span>Type the exact punches from your timecard. Took a break? Log each part as its own shift. Paid hours, overtime and take-home come from your Pay Rules.</span><button type="button" class="cap-btn" data-act="add-shift">Log a Shift</button></div>';
@@ -2167,7 +2168,8 @@ var SHEETS={
         return sec(many?'Shift '+(i+1):'',pillRow(P+'.clockIn','time','Clock in')+
           (co?toggleRow(P+'.open','Still on the clock',b.open?'Counts live until you clock out':'Turn on if you haven’t clocked out yet'):'')+
           (b.open?'':pillRow(P+'.clockOut','time','Clock out'))+
-          (isC||b.open?'':toggleRow(P+'.meal','Meal punch','Clocked out for a meal')+(b.meal?pillRow(P+'.mealOut','time','Meal out')+pillRow(P+'.mealIn','time','Meal in'):'')),
+          (isC||b.open?'':toggleRow(P+'.meal','Meal punch','Clocked out for a meal')+(b.meal?pillRow(P+'.mealOut','time','Meal out')+pillRow(P+'.mealIn','time','Meal in'):''))+
+          (num(rule(d.job).brk)>0||(b.brkOv&&b.brkOv!=='auto')?brkRow(P,b,d):''),
           '',{tight:i>0,hRight:many?'<button type="button" class="hbtn red" data-act="shift-del-block" data-i="'+i+'">Remove</button>':''});
       }).join('');
       var add=sec('','<button type="button" class="row action tap" data-act="shift-add-block">'+svg('plus')+'&nbsp;Add Another Shift This Day</button>',
@@ -2182,7 +2184,7 @@ var SHEETS={
         var rows=cs.map(function(c,i){
           tot.paid+=c.paidAll;tot.ot+=c.ot;tot.gross+=c.gross;tot.th+=c.th;if(c.check&&checks.indexOf(c.check)<0)checks.push(c.check);
           return vrow((many?'Shift '+(i+1)+' · ':'')+fmtT(c.sh.clockIn)+' – '+fmtT(c.sh.clockOut),hrs(c.paidAll)+' hrs',
-            c.brk?mins(c.brk)+' likely deducted ('+hrs(c.span)+' hrs straight)':c.meal?mins(c.meal)+' meal':c.bonus?'+'+hrs(c.bonus)+' bonus hrs (36-for-40)':'');
+            c.brk?mins(c.brk)+(c.sh.brkOv==='on'?' deducted (you set it)':' likely deducted ('+hrs(c.span)+' hrs straight)'):c.sh.brkOv==='off'&&c.span>=num(c.r.brkMin)?'No deduction: you took a break':c.meal?mins(c.meal)+' meal':c.bonus?'+'+hrs(c.bonus)+' bonus hrs (36-for-40)':'');
         }).join('');
         var ob=openBlock(d);
         if(ob)rows+=vrow((many?'Shift '+d.blocks.length+' · ':'')+'Since '+fmtT(ob.clockIn),'Live','Counting until you clock out');
@@ -2207,7 +2209,7 @@ var SHEETS={
       S.shifts=S.shifts.filter(function(s){return orig.indexOf(s.id)<0}).concat(recs);
       var ob=openBlock(d);
       if(ob){
-        PUNCH={job:d.job,date:d.date,t:ob.clockIn,start:punchStart({date:d.date,t:ob.clockIn})};savePunch();
+        PUNCH={job:d.job,date:d.date,t:ob.clockIn,start:punchStart({date:d.date,t:ob.clockIn}),brkOv:ob.brkOv==='on'||ob.brkOv==='off'?ob.brkOv:''};savePunch();
         S.shifts.sort(function(a,b){return (a.date+a.clockIn)<(b.date+b.clockIn)?-1:1});touch('shifts');
         toast((d.fromPunch?'Clock-in set: ':'On the clock since ')+fmtT(ob.clockIn));return;
       }
@@ -2522,15 +2524,20 @@ function punchDraft(open){
   var P=PUNCH,g=S.shifts.filter(function(x){return !x.planned&&x.job===P.job&&x.date===P.date}).sort(function(a,b){return a.clockIn<b.clockIn?-1:1});
   var d=g.length?groupDraft(g):{planned:false,job:P.job,date:P.date,blocks:[],notes:'',origIds:[]};
   d.planned=false;d.fromPunch=true;d.punchT=P.t;
-  d.blocks.push({clockIn:P.t,clockOut:clockHM(new Date(Math.round(Date.now()/60000)*60000)),open:!!open,meal:false,mealOut:'',mealIn:''});
+  d.blocks.push({clockIn:P.t,clockOut:clockHM(new Date(Math.round(Date.now()/60000)*60000)),open:!!open,meal:false,mealOut:'',mealIn:'',brkOv:P.brkOv||'auto'});
   return d;
+}
+function brkRow(P,b,d){
+  var v=b.brkOv==='on'||b.brkOv==='off'?b.brkOv:'auto',r=rule(d.job),mn=mins(num(r.brk)>0?r.brk:0.5);
+  var sub=v==='off'?'No deduction: you took a real break':v==='on'?mn+' comes off no matter what':'Auto: '+hrs(r.brkMin)+'+ hrs straight loses '+mn;
+  return '<div class="row"><div class="row-main"><div class="row-title">'+mn+' deduction</div><div class="row-sub">'+sub+'</div></div>'+seg(P+'.brkOv',[['auto','Auto'],['off','No'],['on','Yes']],v)+'</div>';
 }
 function openBlock(d){var b=(d.blocks||[]).filter(function(x){return x.open})[0];return b||null}
 function canOpen(d,i){return !d.planned&&i===d.blocks.length-1&&isDate(d.date)&&d2n(d.date)>=todayN()-1&&d2n(d.date)<=todayN()&&(!PUNCH||!!d.fromPunch)}
-function draftShifts(d){if(!d._tmp)d._tmp=uid();return d.blocks.filter(function(b){return !b.open}).map(function(b,i){var meal=d.job!=='Caf'&&b.meal;return {planned:!!d.planned,id:b.id||('new-'+d._tmp+'-'+i),job:d.job,date:d.date,clockIn:b.clockIn,mealOut:meal?b.mealOut:'',mealIn:meal?b.mealIn:'',clockOut:b.clockOut,notes:i===0?String(d.notes||''):''}})}
+function draftShifts(d){if(!d._tmp)d._tmp=uid();return d.blocks.filter(function(b){return !b.open}).map(function(b,i){var meal=d.job!=='Caf'&&b.meal;return {planned:!!d.planned,id:b.id||('new-'+d._tmp+'-'+i),job:d.job,date:d.date,clockIn:b.clockIn,mealOut:meal?b.mealOut:'',mealIn:meal?b.mealIn:'',clockOut:b.clockOut,notes:i===0?String(d.notes||''):'',brkOv:b.brkOv==='on'||b.brkOv==='off'?b.brkOv:''}})}
 function dayGroup(id){var s=S.shifts.filter(function(x){return x.id===id})[0];if(!s)return null;var mt=s.planned?metIds():{};return S.shifts.filter(function(x){return x.date===s.date&&x.job===s.job&&!!x.planned===!!s.planned&&!!mt[x.id]===!!mt[s.id]}).sort(function(a,b){return a.clockIn<b.clockIn?-1:1})}
 function groupDraft(g){return {planned:!!g[0].planned,job:g[0].job,date:g[0].date,origIds:g.map(function(x){return x.id}),notes:g.map(function(x){return x.notes}).filter(Boolean).join(' · '),
-  blocks:g.map(function(x){return {id:x.id,clockIn:x.clockIn,clockOut:x.clockOut,meal:!!(x.mealOut||x.mealIn),mealOut:x.mealOut,mealIn:x.mealIn}})}}
+  blocks:g.map(function(x){return {id:x.id,clockIn:x.clockIn,clockOut:x.clockOut,meal:!!(x.mealOut||x.mealIn),mealOut:x.mealOut,mealIn:x.mealIn,brkOv:x.brkOv||'auto'}})}}
 function openSheet(kind,draft){
   sheet={kind:kind,draft:draft,lastStep:draft.step};
   var layer=$('#sheet-layer');
