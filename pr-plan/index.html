@@ -491,6 +491,48 @@ html.sheet-up #status-bar-fill{background:#000}
 .pn-out{flex:1;height:50px;border:0;border-radius:999px;background:var(--red);color:#fff;font-size:17px;font-weight:600;letter-spacing:-.4px}
 .pn-edit{flex:none;height:50px;padding:0 22px;border:0;border-radius:999px;background:var(--fill);color:var(--label);font-size:17px;font-weight:600;letter-spacing:-.4px}
 .pn-ins{display:flex;gap:6px;flex:none}
+.wt{color:var(--red);font-weight:500}
+.wt-big{text-align:center;margin:-6px 16px 14px;font-size:15px;color:var(--label2);min-height:20px}
+.wt-big b{color:var(--red);font-weight:600}
+.group.flight{padding:14px 16px 14px}
+.group.flight>*::after{display:none}
+.fl-h{display:flex;justify-content:space-between;align-items:baseline;font-size:13px;letter-spacing:.2px}
+.fl-h b{font-weight:700;color:var(--label)}
+.fl-h span{color:var(--label2);font-style:italic}
+.fl-wrap{position:relative;margin-top:4px}
+.fl-svg{display:block;width:100%;height:auto;overflow:visible}
+.fl-track{fill:none;stroke:var(--label3);stroke-width:2;stroke-dasharray:1.2 1.6;stroke-linecap:round}
+.fl-done{fill:none;stroke:var(--tint);stroke-width:2.6;stroke-linecap:round}
+.fl-cp{fill:var(--card);stroke:var(--label3);stroke-width:2}
+.fl-cp.on{fill:var(--tint);stroke:var(--tint)}
+.fl-end{fill:var(--card);stroke:var(--green);stroke-width:2.4}
+.fl-end.on{fill:var(--green)}
+.fl-plane{position:absolute;color:var(--tint);line-height:0;transition:left .6s var(--ease),top .6s var(--ease)}
+.fl-plane .ic{width:26px;height:26px;fill:currentColor;stroke:none;filter:drop-shadow(0 2px 3px rgba(0,0,0,.18))}
+.fl-l{display:flex;justify-content:space-between;font-size:12px;color:var(--label2);margin-top:2px}
+.fl-cap{margin-top:8px;font-size:14px;color:var(--label2)}
+.fl-cap b{color:var(--label);font-weight:600}
+.rc-nav{display:flex;align-items:center;justify-content:space-between;margin:0 16px 12px;font-size:15px;font-weight:600}
+.rc-b{border:0;background:none;padding:6px 0;color:var(--tint);font:inherit;font-weight:500;display:inline-flex;align-items:center;gap:2px;cursor:pointer}
+.rc-b .ic{width:17px;height:17px}
+.rc-sp{width:60px}
+.group.rc-hero{background:transparent;overflow:visible}
+.group.rc-hero>*::after{display:none}
+.rc-tiles{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.rc-t{background:var(--card);border-radius:20px;padding:12px 14px;display:flex;flex-direction:column;gap:2px}
+.rc-t span{font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.3px;color:var(--label2)}
+.rc-t b{font:700 26px/1.15 var(--font-round);letter-spacing:-.4px;font-variant-numeric:tabular-nums}
+.rc-t i{font-style:normal;font-size:13px;color:var(--label2)}
+.rc-t i.wt{color:var(--red)}
+.rc-ai{padding:14px 16px;font-size:16px;line-height:1.45;letter-spacing:-.2px}
+.rc-ai p{margin:0 0 10px}
+.rc-ai p:last-of-type{margin-bottom:0}
+.rc-wait{color:var(--label2)}
+.rc-empty p{color:var(--label2);font-size:15px}
+.rc-btn{display:flex;align-items:center;justify-content:center;margin-top:12px;background:var(--purple)}
+.rc-btn .ic{width:18px;height:18px}
+.rc-by{margin-top:10px;font-size:13px;color:var(--label2)}
+.linkbtn{border:0;background:none;padding:0;color:var(--tint);font:inherit;cursor:pointer}
 .pn-ft{margin-top:14px}
 .pn-bar{height:8px;border-radius:99px;background:color-mix(in srgb,var(--green) 16%,transparent);overflow:hidden}
 .pn-bar i{display:block;height:100%;border-radius:99px;background:var(--green)}
@@ -1333,6 +1375,108 @@ function punchCard(Tk){
   return '<div class="row">'+tileIcon('timer','--green')+'<div class="row-main"><div class="row-title">Clock In</div><div class="row-sub">'+(F0?'Today’s plan: <b class="g">'+money(F0.th)+'</b> by '+fmtT(F0.end):'Starts the clock now')+'</div></div>'+
     '<div class="pn-ins">'+jobs.map(function(j){return '<button type="button" class="pill-btn go" data-act="punch-in" data-job="'+esc(j)+'">'+(jobs.length>1?esc(j):'Clock In')+'</button>'}).join('')+'</div></div>';
 }
+/* ===== prices in work time (everyday spending only) ===== */
+function workJob(){if(PUNCH)return PUNCH.job;var t=n2d(todayN()),last=null;S.shifts.forEach(function(x){if(!x.planned&&x.date<=t&&(!last||(x.date+x.clockIn)>(last.date+last.clockIn)))last=x});return last?last.job:'Caf'}
+function workTime(amount,job){
+  job=job||workJob();var r=thr(rule(job));if(!(r>0))return '';
+  var m=Math.max(1,Math.round(num(amount)/r*60)),t=m<60?m+' min':Math.floor(m/60)+' hr'+(m%60?' '+m%60+' min':'');
+  return t+(job==='Caf'?' of caf':' at '+job);
+}
+/* ===== flight to San Juan: the money goal as a flight path ===== */
+var FL=(function(){var P=[[14,74],[150,-6],[286,74]],pts=[],L=[0],N=80,i;
+  for(i=0;i<=N;i++){var t=i/N,a=(1-t)*(1-t),b=2*(1-t)*t,c=t*t;pts.push([a*P[0][0]+b*P[1][0]+c*P[2][0],a*P[0][1]+b*P[1][1]+c*P[2][1]]);if(i)L.push(L[i-1]+Math.hypot(pts[i][0]-pts[i-1][0],pts[i][1]-pts[i-1][1]))}
+  return {at:function(f){var g=Math.max(0,Math.min(1,f))*L[N];for(var k=1;k<=N;k++)if(L[k]>=g||k===N){var u=(g-L[k-1])/((L[k]-L[k-1])||1),dx=pts[k][0]-pts[k-1][0],dy=pts[k][1]-pts[k-1][1];return {x:pts[k-1][0]+u*dx,y:pts[k-1][1]+u*dy,deg:Math.atan2(dy,dx)*180/Math.PI+90}}}};
+})();
+function flightCard(M){
+  var c=M.c,I=S.inputs,tb=trip(),cp=[],acc=0;
+  var add=function(l,v){v=num(v);if(v>0){acc+=v;cp.push({l:l,at:acc})}};
+  add('School debt',c.debtPay);
+  add('Flight',num(I.flight)+num(c.extraFlight));
+  tb.monthly.forEach(function(o){if(o.k==='airbnb')add('Rent',o.total)});
+  add('Food, phone, bus',tb.monthly.reduce(function(a,o){return o.k==='airbnb'?a:a+o.total},0)+num(I.mom));
+  add('Cushion',num(I.cushion));
+  var tot=M.out>0?M.out:acc,have=M.est+M.planned,f=tot>0?Math.max(0,Math.min(1,have/tot)):0,pl=FL.at(f),next=cp.filter(function(x){return x.at>have})[0];
+  var dots=cp.slice(0,-1).map(function(x){var q=FL.at(x.at/tot);return '<circle cx="'+q.x.toFixed(1)+'" cy="'+q.y.toFixed(1)+'" r="4.2" class="fl-cp'+(have>=x.at?' on':'')+'"/>'}).join('');
+  return '<div class="fl-h"><b>CMH → SJU</b><span>Vengo a vivir</span></div>'+
+    '<div class="fl-wrap"><svg viewBox="0 0 300 92" class="fl-svg" aria-hidden="true">'+
+      '<path d="M14 74 Q150 -6 286 74" pathLength="100" class="fl-track"/>'+
+      '<path d="M14 74 Q150 -6 286 74" pathLength="100" class="fl-done" stroke-dasharray="'+(f*100).toFixed(2)+' 100"/>'+dots+
+      '<circle cx="14" cy="74" r="4.2" class="fl-cp on"/><circle cx="286" cy="74" r="5.5" class="fl-end'+(f>=1?' on':'')+'"/></svg>'+
+      '<span class="fl-plane" style="left:'+(pl.x/3).toFixed(2)+'%;top:'+(pl.y/92*100).toFixed(2)+'%;transform:translate(-50%,-50%) rotate('+pl.deg.toFixed(1)+'deg)">'+svg('plane')+'</span></div>'+
+    '<div class="fl-l"><span>Mount Vernon</span><span>San Juan · casa</span></div>'+
+    '<div class="fl-cap">'+(f>=1?'<b>Everything’s covered.</b> Vamos.':Math.floor(f*100)+'% of the way'+(next?' · Next: <b>'+esc(next.l)+'</b> covered in '+money(next.at-have,0):''))+'</div>';
+}
+/* ===== Sunday recap ===== */
+function weekData(ws){
+  var we=ws+6,o={ws:ws,we:we,jobs:{},hrs:0,th:0,day:{},sp:0,units:0,spDay:{},byAct:{},exp:0,byCat:{},planned:0,extra:0,notes:[]};
+  computeShifts(S.shifts.filter(function(x){return !x.planned})).forEach(function(c){if(c.d<ws||c.d>we)return;
+    var j=o.jobs[c.sh.job]=o.jobs[c.sh.job]||{h:0,th:0};j.h+=c.paidAll;j.th+=c.th;o.hrs+=c.paidAll;o.th+=c.th;o.day[c.d]=(o.day[c.d]||0)+c.th;
+    if(c.sh.notes)o.notes.push(fmtD(c.d,'wmd')+' shift note: '+c.sh.notes)});
+  S.study.forEach(function(e){var d=d2n(e.date);if(d<ws||d>we)return;o.sp+=num(e.mins);o.units+=num(e.units);o.spDay[d]=(o.spDay[d]||0)+num(e.mins);o.byAct[e.act]=(o.byAct[e.act]||0)+num(e.mins);
+    if(e.notes)o.notes.push(fmtD(d,'wmd')+' Spanish ('+actOf(e.act).l+', '+num(e.mins)+' min): '+e.notes)});
+  S.expenses.forEach(function(e){var d=d2n(e.date),c=catOf(e.cat);if(d<ws||d>we)return;if(c.planned)o.planned+=num(e.amount);else{o.exp+=num(e.amount);o.byCat[c.k]=(o.byCat[c.k]||0)+num(e.amount)}
+    if(e.notes)o.notes.push(fmtD(d,'wmd')+' spent '+money(e.amount)+' ('+c.l+'): '+e.notes)});
+  S.extra.forEach(function(e){var d=d2n(e.date);if(d<ws||d>we)return;o.extra+=num(e.amount);if(e.notes)o.notes.push(fmtD(d,'wmd')+' extra money '+money(e.amount)+': '+e.notes)});
+  var top=function(m){var k=null;Object.keys(m).forEach(function(x){if(k===null||m[x]>m[k])k=x});return k};
+  o.bestDay=top(o.day);o.bestSp=top(o.spDay);o.topCat=top(o.byCat);o.topAct=top(o.byAct);
+  o.spDays=Object.keys(o.spDay).filter(function(k){return o.spDay[k]>=num(S.goals.minMins)}).length;
+  o.goal=Math.round(num(S.goals.weekHrs)*60);
+  return o;
+}
+function recapWeek(){var t=todayN();if(UI.recapW!=null)return UI.recapW;return wday(t)===0?weekStartMon(t):weekStartMon(t)-7}
+function recapRange(ws){return fmtD(ws,'md')+' – '+fmtD(ws+6,'md')}
+var RECAPS={};try{RECAPS=JSON.parse(localStorage.getItem('pr-plan-recaps')||'{}')||{}}catch(e){RECAPS={}}
+function saveRecaps(){try{localStorage.setItem('pr-plan-recaps',JSON.stringify(RECAPS))}catch(e){}}
+var AI={sample:undefined,busy:{}};
+function aiInit(){
+  if(AI.sample!==undefined)return;
+  if(!window.claude||typeof window.claude.use!=='function'){AI.sample=null;return}
+  AI.sample=false;
+  Promise.resolve().then(function(){return window.claude.use('sample')}).then(function(x){AI.sample=x||null;render()},function(){AI.sample=null;render()});
+}
+function geminiKey(){try{return localStorage.getItem('pr-plan-gemini')||''}catch(e){return ''}}
+function gemini(key,prompt){
+  var models=['gemini-flash-latest','gemini-3.5-flash'];
+  var go=function(i){
+    return fetch('https://generativelanguage.googleapis.com/v1beta/models/'+models[i]+':generateContent',{method:'POST',headers:{'Content-Type':'application/json','x-goog-api-key':key},
+      body:JSON.stringify({contents:[{role:'user',parts:[{text:prompt}]}],generationConfig:{temperature:0.8,maxOutputTokens:2048}})})
+    .then(function(r){return r.json().catch(function(){return {}}).then(function(j){
+      if(!r.ok){if(r.status===404&&i+1<models.length)return go(i+1);throw new Error((j.error&&j.error.message)||('Gemini error '+r.status))}
+      var c=j.candidates&&j.candidates[0],t=c&&c.content&&c.content.parts?c.content.parts.map(function(x){return x.text||''}).join('').trim():'';
+      if(!t)throw new Error('Gemini sent back an empty answer');return t;
+    })});
+  };
+  return go(0);
+}
+function recapPrompt(o,pv){
+  var t=todayN(),cur=t>=o.ws&&t<=o.we,M=moneyState(),dep=M.dep,lines=[];
+  var jobs=Object.keys(o.jobs).map(function(j){return j+' '+hrs(o.jobs[j].h,1)+' hrs'}).join(', ');
+  lines.push('Week: '+recapRange(o.ws)+(cur?' (in progress, today is '+fmtD(t,'wmd')+')':''));
+  lines.push('Worked: '+hrs(o.hrs,1)+' paid hrs'+(jobs?' ('+jobs+')':'')+', take-home '+money(o.th)+(o.bestDay?'. Best day '+fmtD(+o.bestDay,'wmd')+' ('+money(o.day[o.bestDay])+')':'')+'. Last week: '+hrs(pv.hrs,1)+' hrs, '+money(pv.th)+'.');
+  lines.push('Spanish: '+o.sp+' min of a '+o.goal+' min weekly goal, '+o.units+' Babbel unit'+(o.units===1?'':'s')+', studied '+o.spDays+' of 7 days'+(o.topAct?', mostly '+actOf(o.topAct).l:'')+'. Last week: '+pv.sp+' min.');
+  lines.push('Everyday spending: '+money(o.exp)+(o.exp>0?' (= '+workTime(o.exp)+')':'')+(o.topCat?', biggest: '+catOf(o.topCat).l+' '+money(o.byCat[o.topCat]):'')+'. Last week: '+money(pv.exp)+'. Planned payments (rent, debt, flights): '+money(o.planned)+'. Extra money: '+money(o.extra)+'.');
+  if(cur)lines.push('Outlook: back home with '+money(num(S.inputs.cushion)+M.over,0)+' of his '+money(S.inputs.cushion,0)+' cushion at this pace. '+Math.max(0,dep-t)+' days until he flies to San Juan.');
+  var notes=o.notes.slice(0,40).map(function(n){return '- '+n.slice(0,180)}).join('\n');
+  return 'You write a short weekly recap inside Aiden’s phone app. He is 18 and saving up to move to San Juan, Puerto Rico, to live there (not a vacation). He works cafeteria shifts (Walmart later), studies Spanish (target: A2 plus job-interview Spanish by February) and logs his spending.\n\n'+
+    'Write 3 short paragraphs, under 130 words in total. Plain text only: no headings, no markdown, no bullet points, at most one emoji. Be warm, upbeat and specific to his numbers and notes. Never shame him and never mention taxes or pre-tax pay; all amounts are take-home. Cover the week’s highlight, Spanish compared with his goal, and spending in work time. End with one small, concrete idea for next week, then one short cheering line in easy Spanish.\n\n'+
+    'This week’s data:\n'+lines.join('\n')+(notes?'\n\nHis notes from the week:\n'+notes:'');
+}
+function fmtRecap(t){return String(t||'').trim().split(/\n\s*\n/).map(function(p){return '<p>'+esc(p.replace(/\*\*/g,'')).replace(/\n/g,'<br>')+'</p>'}).join('')}
+function runRecap(ws){
+  if(AI.busy[ws])return;
+  var o=weekData(ws),pv=weekData(ws-7),prompt=recapPrompt(o,pv);
+  var done=function(txt,src){RECAPS[ws]={text:txt,src:src,at:Date.now()};saveRecaps();delete AI.busy[ws];render();toast('Recap ready')};
+  var fail=function(msg){delete AI.busy[ws];render();toast(msg)};
+  if(AI.sample){
+    AI.busy[ws]={text:''};render();
+    AI.sample(prompt,{modelTier:'quick',onText:function(x){if(!AI.busy[ws])return;AI.busy[ws].text=x.text;var el=document.querySelector('[data-recap-live]');if(el)el.innerHTML=fmtRecap(x.text)||'<p>Thinking…</p>'}})
+      .then(function(r){done(r&&r.text||'', 'Claude')},function(e){fail(e&&e.code==='not_granted'?'Claude wasn’t allowed to write it':e&&e.code==='rate_limited'?'Too many requests. Try again in a bit':'Couldn’t write the recap')});
+    return;
+  }
+  var key=geminiKey();if(!key){openSheet('aikey',{key:''});return}
+  AI.busy[ws]={text:''};render();
+  gemini(key,prompt).then(function(t){done(t,'Gemini')},function(e){fail(String(e&&e.message||'Gemini didn’t answer').slice(0,120))});
+}
 function shiftGroups(list){
   var groups=[],gi={};
   list.forEach(function(sh){var key=sh.date+'|'+sh.job;if(!gi[key]){gi[key]={date:sh.date,job:sh.job,items:[]};groups.push(gi[key])}gi[key].items.push(sh)});
@@ -1359,10 +1503,11 @@ function todayItems(){
   items.push({icon:'book',color:'--orange',title:'Babbel unit',sub:bDone?'Done today':St.left!==null?hrs(St.left)+' units left':'One a day',act:'add-study',attrs:'data-a="babbel"',done:bDone,todo:!bDone});
   var sDone=St.today>=St.dayGoal;
   items.push({icon:'chat',color:'--green',title:'Spanish today',sub:sDone?'Goal done':St.today>=num(S.goals.minMins)?'Today counts. Goal is '+St.dayGoal+' min':'Goal '+St.dayGoal+' min · '+num(S.goals.minMins)+' min counts the day',val:fmtMins(St.today),act:'tab',attrs:'data-tab="spanish"',done:sDone,todo:!sDone});
+  if(wday(t)===0){var rw=weekData(weekStartMon(t));items.push({icon:'sparkles',color:'--purple',title:'Your week in review',sub:money(rw.th,0)+' earned · '+fmtMins(rw.sp)+' of Spanish'+(RECAPS[weekStartMon(t)]?' · recap ready':''),act:'push',attrs:'data-view="recap"',todo:false})}
   if(t>=d2n('2026-11-20')){
     var stale=t-M.base.date;
     if(stale>7)items.push({icon:'wallet',color:'--green',title:'Update balances',sub:'Last updated '+stale+' days ago',act:'add-balance',todo:true});
-    items.push({icon:'dollar',color:'--gray',title:'Spending today',sub:M.today?'Logged so far':'Log anything you buy',val:M.today?'−'+money(M.today):money(0),act:'add-expense',todo:false});
+    items.push({icon:'dollar',color:'--gray',title:'Spending today',sub:M.today?'<span class="wt">'+workTime(M.today)+'</span> so far':'Log anything you buy',val:M.today?'−'+money(M.today):money(0),act:'add-expense',todo:false});
   }
   return items;
 }
@@ -1478,7 +1623,8 @@ plan:function(){
   var body=cta+todaySec+hero+tiles+
     sec('Left over by '+(P?'plan':'scenario'),chart,'',{cls:'pad'})+
     sec('What-ifs',rows,P?'Other ways it could go. Tap one to tweak it or switch to it.':'Tap one to change its job, dates, caf hours and switches. Green is money left after the trip and the debt; red is how much you’d be short.')+
-    (P?sec('',vrow('Change Plan',null,'Pick a different job or departure date',{act:'wizard',icon:'sparkles',color:'--tint'})):'')+
+    sec('',vrow('Week in Review',null,'Hours, money and Spanish, with a recap written for you',{act:'push',attrs:'data-view="recap"',icon:'sparkles',color:'--purple'})+
+      (P?vrow('Change Plan',null,'Pick a different job or departure date',{act:'wizard',icon:'plan',color:'--tint'}):''))+
     '<div class="sync" data-sync>'+syncText()+'</div>';
   return {title:'PR Plan',large:true,eyebrow:WDL[now.getUTCDay()]+', '+MONL[now.getUTCMonth()]+' '+now.getUTCDate(),right:gbtn('sliders','push','data-view="inputs"','Inputs'),body:body};
 },
@@ -1632,7 +1778,7 @@ money:function(){
   var segs=CATS.filter(function(c){return !c.planned&&M.byCat[c.k]>0}).map(function(c){return {l:c.s,v:M.byCat[c.k],c:c.c}});
   var allow='<div class="row"><div class="row-main"><div class="row-title">Spending allowance</div><div class="row-sub">Your 10% buffer: '+money(M.allowance,0)+' for small stuff before you fly</div></div><div class="row-val strong'+(M.everyday>M.allowance?' r':'')+'">'+(M.everyday>M.allowance?money(M.everyday-M.allowance,0)+' over':money(M.allowLeft,0)+' left')+'</div></div>'+
     (segs.length?'<div class="row" style="display:block">'+stackBar(segs,M.allowance)+'</div>':'')+
-    vrow('Today',M.today?'−'+money(M.today):money(0))+vrow('Last 7 days',M.week?'−'+money(M.week):money(0));
+    vrow('Today',M.today?'−'+money(M.today):money(0),M.today?'<span class="wt">'+workTime(M.today)+'</span>':'')+vrow('Last 7 days',M.week?'−'+money(M.week):money(0),M.week?'<span class="wt">'+workTime(M.week)+'</span>':'');
   var list=S.expenses.slice().sort(function(a,b){return b.date>a.date?1:b.date<a.date?-1:num(b.at)-num(a.at)}).slice(0,60),groups=[],cur=null;
   list.forEach(function(e){if(!cur||cur.date!==e.date){cur={date:e.date,items:[],tot:0};groups.push(cur)}cur.items.push(e);cur.tot+=num(e.amount)});
   var exp=groups.length?groups.map(function(g){
@@ -1640,7 +1786,7 @@ money:function(){
     return sec(lab,g.items.map(function(e){var c=catOf(e.cat);
       return '<div class="swipe hi"><div class="swipe-acts"><button type="button" class="sa red" data-act="del-expense" data-id="'+esc(e.id)+'">'+svg('trash')+'Delete</button></div>'+
         '<div class="row swipe-row tap" data-act="edit-expense" data-id="'+esc(e.id)+'" role="button" tabindex="0">'+tileIcon(c.i,c.c)+
-        '<div class="row-main"><div class="row-title">'+esc(e.notes||c.l)+'</div>'+(e.notes||c.planned?'<div class="row-sub">'+(e.notes?esc(c.l):'')+(c.planned?(e.notes?' · ':'')+'Counts toward your goal':'')+'</div>':'')+'</div>'+
+        '<div class="row-main"><div class="row-title">'+esc(e.notes||c.l)+'</div><div class="row-sub">'+(e.notes?esc(c.l)+' · ':'')+(c.planned?'Counts toward your goal':'<span class="wt">'+workTime(e.amount)+'</span>')+'</div></div>'+
         '<div class="row-val'+(c.planned?'':' strong')+'">−'+money(e.amount)+'</div></div></div>';
     }).join(''),'',{hRight:'<span>−'+money(g.tot)+'</span>'});
   }).join(''):sec('Expenses','<div class="empty">'+svg('wallet')+'<b>No Expenses Yet</b><span>Log gas, food and everything else from the day you land. The estimate updates as you go.</span></div>');
@@ -1658,7 +1804,7 @@ money:function(){
     vrow('Projected when you fly',money(M.proj),'',{strong:true})+
     vrow('Still needed',money(M.need),M.planned>0?'Goal minus '+money(M.planned,0)+' in planned payments made':'Trip + school debt'+(M.c.extraFlight?' + Feb 10 flight':''))+
     vrow('Back home with',num(S.inputs.cushion)+M.over>=0?money(num(S.inputs.cushion)+M.over,2):signed(num(S.inputs.cushion)+M.over,2),'Your '+money(S.inputs.cushion,0)+' cushion '+(M.over>=0?'+ ':'− ')+money(Math.abs(M.over),2)+' at this pace',{strong:true,vcls:tone(M.over).k,vst:tone(M.over).st});
-  var body=sec('',hero,'',{cls:'money-hero',tight:true})+quick+
+  var body=sec('',hero,'',{cls:'money-hero',tight:true})+sec('',flightCard(M),'',{cls:'flight',tight:true})+quick+
     sec('',allow,'Planned payments (school debt, Airbnb, flights) don’t use the allowance. They shrink your goal instead.')+
     exp+
     sec('How the estimate works',estRows,'Paychecks count once their payday passes.'+(cafGuess?' The caf payday isn’t set in Pay Rules, so it assumes a week after each pay period.':'')+' Update your balances now and then to keep it close.')+
@@ -1738,6 +1884,36 @@ budget:function(){
   var body=sec('',top,'',{cls:'result',tight:true})+sec('',len)+sec('Monthly × '+tb.m,monthly)+sec('One-time',once)+sec('Per month: job hunting vs. working',pm)+
     sec('',vrow('Edit Amounts',null,'Rent, food, flights and the cushion live on Inputs',{act:'push',attrs:'data-view="inputs"',icon:'sliders',color:'--gray'}));
   return {title:'Trip Budget',large:true,eyebrow:'Puerto Rico · no-job trial',right:gbtn('sliders','push','data-view="inputs"','Inputs'),body:body};
+},
+recap:function(){
+  aiInit();
+  var ws=recapWeek(),t=todayN(),o=weekData(ws),pv=weekData(ws-7),cur=t>=ws&&t<=ws+6,M=moneyState();
+  var d=function(a,b,f){var x=a-b;return Math.abs(x)<1e-9?'same as last week':(x>0?'+':'−')+f(Math.abs(x))+' vs last week'};
+  var tiles='<div class="rc-tiles">'+
+    '<div class="rc-t"><span>Earned</span><b class="g">'+money(o.th,0)+'</b><i>'+d(o.th,pv.th,function(v){return money(v,0)})+'</i></div>'+
+    '<div class="rc-t"><span>Worked</span><b>'+hrs(o.hrs,1)+' hrs</b><i>'+d(o.hrs,pv.hrs,function(v){return hrs(v,1)+' hrs'})+'</i></div>'+
+    '<div class="rc-t"><span>Spanish</span><b>'+fmtMins(o.sp)+'</b><i>'+(o.goal?Math.round(o.sp/o.goal*100)+'% of goal':'')+'</i></div>'+
+    '<div class="rc-t"><span>Spent</span><b>'+money(o.exp,0)+'</b><i class="wt">'+(o.exp>0?workTime(o.exp):'nothing')+'</i></div></div>';
+  var nav='<div class="rc-nav"><button type="button" class="rc-b" data-act="recap-week" data-d="-1">'+svg('chevL')+'Earlier</button><span>'+(cur?'This week':recapRange(ws))+'</span>'+
+    (ws+7<=t?'<button type="button" class="rc-b" data-act="recap-week" data-d="1">Later'+svg('chevR')+'</button>':'<span class="rc-sp"></span>')+'</div>';
+  var R=RECAPS[ws],busy=AI.busy[ws],hasAI=AI.sample||geminiKey(),ai;
+  if(busy)ai='<div class="rc-ai" data-recap-live>'+(busy.text?fmtRecap(busy.text):'<p class="rc-wait">Writing your recap…</p>')+'</div>';
+  else if(R)ai='<div class="rc-ai">'+fmtRecap(R.text)+'<div class="rc-by">Written by '+esc(R.src)+' · <button type="button" class="linkbtn" data-act="recap-ai">Rewrite</button></div></div>';
+  else if(AI.sample===false)ai='<div class="rc-ai"><p class="rc-wait">Connecting…</p></div>';
+  else ai='<div class="rc-ai rc-empty"><p>'+(hasAI?'Turn your week into a short story: what went well, Spanish, spending and one idea for next week.':'A free AI can turn your week and your notes into a short recap. It needs a free Gemini key first.')+'</p>'+
+    '<button type="button" class="wiz-btn rc-btn" data-act="recap-ai">'+svg('sparkles')+'&nbsp;'+(hasAI?'Write My Recap':'Set Up Free AI')+'</button></div>';
+  var work=Object.keys(o.jobs).map(function(j){var jc=JOBC[j]||JOBC.Caf;return vrow(esc(j),hrs(o.jobs[j].h,1)+' hrs','<span class="g">'+money(o.jobs[j].th)+'</span>',{icon:jc[0],color:jc[1]})}).join('')||vrow('No shifts logged',null,cur?'There’s still time this week':'');
+  if(o.bestDay)work+=vrow('Best day',fmtD(+o.bestDay,'wmd'),money(o.day[o.bestDay])+' take-home');
+  var sp=vrow('Minutes',fmtMins(o.sp),'Goal '+fmtMins(o.goal)+' · '+d(o.sp,pv.sp,function(v){return v+' min'}))+
+    vrow('Babbel units',String(o.units))+vrow('Days that counted',o.spDays+' of 7',num(S.goals.minMins)+'+ min')+
+    (o.topAct?vrow('Most time on',esc(actOf(o.topAct).l),fmtMins(o.byAct[o.topAct])):'');
+  var cats=Object.keys(o.byCat).sort(function(a,b){return o.byCat[b]-o.byCat[a]}).map(function(k){var c=catOf(k);return vrow(esc(c.l),money(o.byCat[k]),'<span class="wt">'+workTime(o.byCat[k])+'</span>',{icon:c.i,color:c.c})}).join('');
+  var mon=(cats||vrow('No everyday spending',null,'Nice'))+(o.planned?vrow('Planned payments',money(o.planned),'Rent, debt, flights. They don’t count against you'):'')+(o.extra?vrow('Extra money','<span class="g">+'+money(o.extra)+'</span>'):'');
+  var tn=tone(M.over);
+  var out=cur?sec('Outlook',vrow('Back home with',money(num(S.inputs.cushion)+M.over,0),'At this pace, after the trip and the debt',{vcls:tn.k,vst:tn.st,strong:true})):'';
+  var body=nav+sec('',tiles,'',{cls:'rc-hero',tight:true})+sec('Recap',ai,AI.sample?'':(geminiKey()?'Uses your free Gemini key. <button type="button" class="linkbtn" data-act="ai-key">Change</button>':''))+
+    sec('Work',work)+sec('Spanish',sp)+sec('Spending',mon)+out;
+  return {title:'Week in Review',eyebrow:cur?recapRange(ws):'Week of '+fmtD(ws,'md'),large:true,body:body};
 },
 timeline:function(){
   var t=todayN(),P=S.plan,dep=P?d2n(P.depart):d2n('2027-02-11'),items=timelineItems();
@@ -2132,13 +2308,27 @@ SHEETS.export={
       'This has your balances, debt and checklist in it. Keep it somewhere private, then paste it into Import Data on another device.',{tight:true});
   }
 };
+SHEETS.aikey={
+  title:function(){return 'Free AI Recap'},
+  valid:function(d){return String(d.key||'').trim().length>=20},
+  body:function(d){
+    return sec('','<div class="row"><input class="textin" id="f-draft-key" data-bind="draft.key" data-kind="text" placeholder="Paste your Gemini API key" value="'+esc(d.key)+'" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="Gemini API key"></div>',
+        'Get a free key: open <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener">aistudio.google.com</a>, sign in with Google, tap <b>Create API key</b>, copy it and paste it here. It costs nothing.')+
+      sec('','','The key stays on this phone. When you tap Write My Recap, that week’s numbers and notes are sent to Google’s Gemini to write it.')+
+      (geminiKey()?sec('','<button type="button" class="row action red tap" data-act="sheet-delete">Remove Key</button>'):'');
+  },
+  save:function(d){try{localStorage.setItem('pr-plan-gemini',String(d.key).trim())}catch(e){}toast('Key saved. Writing your recap…');setTimeout(function(){runRecap(recapWeek())},350)},
+  del:function(){try{localStorage.removeItem('pr-plan-gemini')}catch(e){}toast('Key removed')}
+};
 SHEETS.expense={
   title:function(d){return d.id?'Edit Expense':'New Expense'},
+  status:function(d){var c=CATMAP[d.cat];return num(d.amount)>0&&c&&!c.planned?'That’s <b>'+workTime(d.amount)+'</b>':''},
   valid:function(d){return num(d.amount)>0&&!!CATMAP[d.cat]&&isDate(d.date)},
   body:function(d){
     function grid(planned){return '<div class="cats" role="radiogroup">'+CATS.filter(function(c){return !!c.planned===planned}).map(function(c){
       return '<button type="button" class="cat" role="radio" aria-checked="'+(d.cat===c.k)+'" data-act="pick" data-bind="draft.cat" data-val="'+c.k+'"><span class="cat-ic" style="--c:var('+c.c+')">'+svg(c.i)+'</span><span class="cat-l">'+c.l+'</span></button>'}).join('')+'</div>'}
     return '<div class="amt"><span>$</span><input id="f-draft-amount" class="amt-in" data-bind="draft.amount" data-kind="num" inputmode="decimal" enterkeyhint="done" autocomplete="off" placeholder="0.00" value="'+esc(d.amount)+'" aria-label="Amount"></div>'+
+      '<div class="wt-big" id="sheet-status">'+SHEETS.expense.status(d)+'</div>'+
       sec('',grid(false),'',{tight:true})+
       sec('Planned payments',grid(true),'These shrink your goal instead of using your spending allowance.')+
       sec('',pillRow('draft.date','date','Date')+'<div class="row"><input class="textin" id="f-draft-notes" data-bind="draft.notes" data-kind="text" placeholder="Note (what was it?)" value="'+esc(d.notes)+'" aria-label="Note"></div>')+
@@ -2147,7 +2337,7 @@ SHEETS.expense={
   save:function(d){
     var e={id:d.id||uid(),date:d.date,cat:d.cat,amount:Math.round(num(d.amount)*100)/100,notes:String(d.notes||'').trim(),at:d.at||Date.now()},i=S.expenses.findIndex(function(x){return x.id===e.id});
     if(i>=0)S.expenses[i]=e;else S.expenses.push(e);touch('expenses');
-    toast((i>=0?'Updated ':'Logged ')+'−'+money(e.amount)+' · '+catOf(e.cat).s);
+    toast((i>=0?'Updated ':'Logged ')+'−'+money(e.amount)+' · '+(catOf(e.cat).planned?catOf(e.cat).s:workTime(e.amount)));
   },
   del:function(d){delItem('expenses',d.id,'Expense deleted')}
 };
@@ -2456,6 +2646,9 @@ var A={
   'edit-study':function(t){var e=S.study.filter(function(x){return x.id===t.dataset.id})[0];if(e)openSheet('study',clone(e))},
   'del-study':function(t){delItem('study',t.dataset.id,'Deleted');render()},
   'timer-start':function(){openSheet('timerpick',{})},
+  'recap-week':function(t){UI.recapW=recapWeek()+7*(+t.dataset.d||0);if(UI.recapW>weekStartMon(todayN()))UI.recapW=weekStartMon(todayN());render()},
+  'recap-ai':function(){runRecap(recapWeek())},
+  'ai-key':function(){openSheet('aikey',{key:geminiKey()})},
   'punch-in':function(t){if(PUNCH){toast('Already on the clock');return}var now=new Date(),j=t.dataset.job||'Caf';if(['Caf','Walmart','Ariel'].indexOf(j)<0)j='Caf';
     var rm=new Date(Math.round(now.getTime()/60000)*60000);PUNCH={job:j,start:rm.getTime(),date:n2d(todayN()),t:clockHM(rm)};savePunch();render();toast('Clocked in at '+fmtT(PUNCH.t))},
   'punch-edit':function(){if(PUNCH)openSheet('shift',punchDraft(true))},
